@@ -24,8 +24,9 @@ import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 from collections import OrderedDict #, defaultdict
 
-
-
+import shapely.wkt
+import shapely.ops
+from shapely.geometry import mapping, Point, LineString
 
 
 linestring = "LINESTRING {}"
@@ -350,3 +351,229 @@ print("wkt_list : ", wkt_list)
 # # title and show
 plt.title('Build Graph')
 plt.show()
+
+# ====================================================== 05 =================================================================== #
+
+def wkt_list_to_nodes_edges(wkt_list, node_iter=10000, edge_iter=10000):
+    '''Convert wkt list to nodes and edges
+    Make an edge between each node in linestring. Since one linestring
+    may contain multiple edges, this is the safest approach'''
+    
+    node_loc_set = set()    # set of edge locations
+    node_loc_dic = {}       # key = node idx, val = location
+    node_loc_dic_rev = {}   # key = location, val = node idx
+    edge_loc_set = set()    # set of edge locations
+    edge_dic = {}           # edge properties
+    
+    for i,lstring in enumerate(wkt_list):
+        # get lstring properties
+        # print("lstring:", lstring)
+        shape = shapely.wkt.loads(lstring)
+        # print("shape:", shape)
+        xs, ys = shape.coords.xy
+        length_orig = shape.length
+        
+        # iterate through coords in line to create edges between every point
+        for j,(x,y) in enumerate(zip(xs, ys)):
+            loc = (x,y)
+            # for first item just make node, not edge
+            if j == 0:
+                # if not yet seen, create new node
+                if loc not in node_loc_set:
+                    node_loc_set.add(loc)
+                    node_loc_dic[node_iter] = loc
+                    node_loc_dic_rev[loc] = node_iter
+                    node = node_iter
+                    node_iter += 1
+                    
+            # if not first node in edge, retrieve previous node and build edge
+            else:
+                prev_loc = (xs[j-1], ys[j-1])
+                #print ("prev_loc:", prev_loc)
+                prev_node = node_loc_dic_rev[prev_loc]
+
+                # if new, create new node
+                if loc not in node_loc_set:
+                    node_loc_set.add(loc)
+                    node_loc_dic[node_iter] = loc
+                    node_loc_dic_rev[loc] = node_iter
+                    node = node_iter
+                    node_iter += 1
+                # if seen before, retrieve node properties
+                else:
+                    node = node_loc_dic_rev[loc]
+
+                # add edge, which is start_node to end_node
+                edge_loc = (loc, prev_loc)
+                edge_loc_rev = (prev_loc, loc)
+                # shouldn't be duplicate edges, so break if we see one
+                if (edge_loc in edge_loc_set) or (edge_loc_rev in edge_loc_set):
+                    print ("Oops, edge already seen, returning:", edge_loc)
+                    return
+                
+                # get distance to prev_loc and current loc
+                proj_prev = shape.project(Point(prev_loc))
+                proj = shape.project(Point(loc))
+                # edge length is the diffence of the two projected lengths
+                #   along the linestring
+                edge_length = abs(proj - proj_prev)
+                # make linestring
+                line_out = LineString([prev_loc, loc])
+                line_out_wkt = line_out.wkt
+                
+                edge_props = {'start': prev_node,
+                              'start_loc_pix': prev_loc,
+                              'end': node,
+                              'end_loc_pix': loc,
+                              'length_pix': edge_length,
+                              'wkt_pix': line_out_wkt,
+                              'geometry_pix': line_out,
+                              'osmid': i}
+                #print ("edge_props", edge_props)
+                
+                edge_loc_set.add(edge_loc)
+                edge_dic[edge_iter] = edge_props
+                edge_iter += 1
+
+    return node_loc_dic, edge_dic
+
+def nodes_edges_to_G(node_loc_dic, edge_dic, name='glurp'):
+    '''Take output of wkt_list_to_nodes_edges(wkt_list) and create networkx 
+    graph'''
+    
+    G = nx.MultiDiGraph()
+    # set graph crs and name
+    G.graph = {'name': name,
+               'crs': {'init': 'epsg:4326'}
+               }
+    
+    # add nodes
+    #for key,val in node_loc_dic.iteritems():
+    for key in node_loc_dic.keys():
+        val = node_loc_dic[key]
+        attr_dict = {'osmid': key,
+                     'x_pix': val[0],
+                     'y_pix': val[1]}
+        G.add_node(key, **attr_dict)
+    
+    # add edges
+    #for key,val in edge_dic.iteritems():
+    for key in edge_dic.keys():
+        val = edge_dic[key]
+        attr_dict = val
+        u = attr_dict['start']
+        v = attr_dict['end']
+        #attr_dict['osmid'] = str(i)
+        
+        #print ("nodes_edges_to_G:", u, v, "attr_dict:", attr_dict)
+        if type(attr_dict['start_loc_pix']) == list:
+            return
+        
+        G.add_edge(u, v, **attr_dict)
+            
+    G2 = G.to_undirected()
+    
+    return G2
+
+def clean_sub_graphs(G_, min_length=300, max_nodes_to_skip=20,
+                      weight='length_pix', verbose=True,
+                      super_verbose=False):
+    '''Remove subgraphs with a max path length less than min_length,
+    if the subgraph has more than max_noxes_to_skip, don't check length 
+        (this step great improves processing time)'''
+    
+    if len(G_.nodes()) == 0:
+        return G_
+    
+    if verbose:
+        print("Running clean_sub_graphs...")
+    try:
+        sub_graphs = list(nx.connected_component_subgraphs(G_))
+    except:
+        sub_graph_nodes = nx.connected_components(G_)
+        sub_graphs = [G_.subgraph(c).copy() for c in sub_graph_nodes]
+    
+    if verbose:
+        print("  sub_graph node count:", [len(z.nodes) for z in sub_graphs])
+        #print("  sub_graphs:", [z.nodes for z in sub_graphs])
+        
+    bad_nodes = []
+    if verbose:
+        print("  len(G_.nodes()):", len(G_.nodes()) )
+        print("  len(G_.edges()):", len(G_.edges()) )
+    if super_verbose:
+        print("G_.nodes:", G_.nodes())
+        edge_tmp = G_.edges()[np.random.randint(len(G_.edges()))]
+        print(edge_tmp, "G.edge props:", G_.edge[edge_tmp[0]][edge_tmp[1]])
+
+    for G_sub in sub_graphs:
+        # don't check length if too many nodes in subgraph
+        if len(G_sub.nodes()) > max_nodes_to_skip:
+            continue
+        
+        else:
+            all_lengths = dict(nx.all_pairs_dijkstra_path_length(G_sub, weight=weight))
+            if super_verbose:
+                print("  \nGs.nodes:", G_sub.nodes() )
+                print("  all_lengths:", all_lengths )
+            # get all lenghts
+            lens = []
+            #for u,v in all_lengths.iteritems():
+            for u in all_lengths.keys():
+                v = all_lengths[u]
+                #for uprime, vprime in v.iteritems():
+                for uprime in v.keys():
+                    vprime = v[uprime]
+                    lens.append(vprime)
+                    if super_verbose:
+                        print("  u, v", u,v )
+                        print("    uprime, vprime:", uprime, vprime )
+            max_len = np.max(lens)
+            if super_verbose:
+                print("  Max length of path:", max_len)
+            if max_len < min_length:
+                bad_nodes.extend(G_sub.nodes())
+                if super_verbose:
+                    print(" appending to bad_nodes:", G_sub.nodes())
+
+    # remove bad_nodes
+    G_.remove_nodes_from(bad_nodes)
+    if verbose:
+        print(" num bad_nodes:", len(bad_nodes))
+        #print("bad_nodes:", bad_nodes)
+        print(" len(G'.nodes()):", len(G_.nodes()))
+        print(" len(G'.edges()):", len(G_.edges()))
+    if super_verbose:
+        print("  G_.nodes:", G_.nodes())
+        
+    return G_
+
+node_loc_dic, edge_dic = wkt_list_to_nodes_edges(wkt_list, node_iter=10000,edge_iter=10000)
+
+# print("node_loc_dic : ", node_loc_dic)
+# print("edge_dic : ", edge_dic)
+
+G0 = nodes_edges_to_G(node_loc_dic, edge_dic)  
+
+G1 = clean_sub_graphs(G0, min_length=20, weight='length_pix', verbose=True, super_verbose=False)
+
+Gout = G0
+
+simplify_graph = True
+
+# for (s, e) in Gout.edges():
+    # print("--------------ps---------", Gout)
+    
+    # ps = Gout[s][e]['pts']
+
+    # plt.plot(ps[:, 1], ps[:, 0], 'green')
+
+# nodes = Gout.nodes()
+
+# ps = np.array([nodes[i]['o'] for i in nodes])
+
+# plt.plot(ps[:, 1], ps[:, 0], 'r.')
+
+# # # title and show
+# plt.title('Build Gout')
+# plt.show()
