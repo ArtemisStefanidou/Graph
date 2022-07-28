@@ -304,7 +304,7 @@ def G_to_wkt(G, add_small=True, connect_crossroads=True,
     if add_small and len(terminal_points) > 1:
         small_segs, good_pairs, good_coords = add_small_segments(
             G, terminal_points, terminal_lines, verbose=verbose)
-        print("small_segs", small_segs)
+        # print("small_segs", small_segs)
         wkt.extend(small_segs)
 
     if debug:
@@ -346,7 +346,7 @@ ps = np.array([nodes[i]['o'] for i in nodes])
 
 plt.plot(ps[:, 1], ps[:, 0], 'r.')
 
-print("wkt_list : ", wkt_list)
+# print("wkt_list : ", wkt_list)
 
 # # title and show
 plt.title('Build Graph')
@@ -408,7 +408,7 @@ def wkt_list_to_nodes_edges(wkt_list, node_iter=10000, edge_iter=10000):
                 edge_loc_rev = (prev_loc, loc)
                 # shouldn't be duplicate edges, so break if we see one
                 if (edge_loc in edge_loc_set) or (edge_loc_rev in edge_loc_set):
-                    print ("Oops, edge already seen, returning:", edge_loc)
+                    # print ("Oops, edge already seen, returning:", edge_loc)
                     return
                 
                 # get distance to prev_loc and current loc
@@ -486,7 +486,7 @@ def clean_sub_graphs(G_, min_length=300, max_nodes_to_skip=20,
         return G_
     
     if verbose:
-        print("Running clean_sub_graphs...")
+         print("Running clean_sub_graphs...")
     try:
         sub_graphs = list(nx.connected_component_subgraphs(G_))
     except:
@@ -500,9 +500,9 @@ def clean_sub_graphs(G_, min_length=300, max_nodes_to_skip=20,
     bad_nodes = []
     if verbose:
         print("  len(G_.nodes()):", len(G_.nodes()) )
-        print("  len(G_.edges()):", len(G_.edges()) )
+        # print("  len(G_.edges()):", len(G_.edges()) )
     if super_verbose:
-        print("G_.nodes:", G_.nodes())
+        # print("G_.nodes:", G_.nodes())
         edge_tmp = G_.edges()[np.random.randint(len(G_.edges()))]
         print(edge_tmp, "G.edge props:", G_.edge[edge_tmp[0]][edge_tmp[1]])
 
@@ -515,7 +515,7 @@ def clean_sub_graphs(G_, min_length=300, max_nodes_to_skip=20,
             all_lengths = dict(nx.all_pairs_dijkstra_path_length(G_sub, weight=weight))
             if super_verbose:
                 print("  \nGs.nodes:", G_sub.nodes() )
-                print("  all_lengths:", all_lengths )
+                # print("  all_lengths:", all_lengths )
             # get all lenghts
             lens = []
             #for u,v in all_lengths.iteritems():
@@ -527,7 +527,7 @@ def clean_sub_graphs(G_, min_length=300, max_nodes_to_skip=20,
                     lens.append(vprime)
                     if super_verbose:
                         print("  u, v", u,v )
-                        print("    uprime, vprime:", uprime, vprime )
+                        # print("    uprime, vprime:", uprime, vprime )
             max_len = np.max(lens)
             if super_verbose:
                 print("  Max length of path:", max_len)
@@ -540,9 +540,9 @@ def clean_sub_graphs(G_, min_length=300, max_nodes_to_skip=20,
     G_.remove_nodes_from(bad_nodes)
     if verbose:
         print(" num bad_nodes:", len(bad_nodes))
-        #print("bad_nodes:", bad_nodes)
-        print(" len(G'.nodes()):", len(G_.nodes()))
-        print(" len(G'.edges()):", len(G_.edges()))
+        # #print("bad_nodes:", bad_nodes)
+        # print(" len(G'.nodes()):", len(G_.nodes()))
+        # print(" len(G'.edges()):", len(G_.edges()))
     if super_verbose:
         print("  G_.nodes:", G_.nodes())
         
@@ -550,8 +550,10 @@ def clean_sub_graphs(G_, min_length=300, max_nodes_to_skip=20,
 
 node_loc_dic, edge_dic = wkt_list_to_nodes_edges(wkt_list, node_iter=10000,edge_iter=10000)
 
-# print("node_loc_dic : ", node_loc_dic)
-# print("edge_dic : ", edge_dic)
+# print("----------------------node_loc_dic : ---------------------", node_loc_dic)
+# print("--------------------------------edge_dic : ----------------------------", edge_dic.values())
+# print("--------------------------------type edge_dic : ----------------------------", type(edge_dic))
+
 
 G0 = nodes_edges_to_G(node_loc_dic, edge_dic)  
 
@@ -559,21 +561,430 @@ G1 = clean_sub_graphs(G0, min_length=20, weight='length_pix', verbose=True, supe
 
 Gout = G0
 
-simplify_graph = True
+plt.imshow(img, cmap='gray')
 
-# for (s, e) in Gout.edges():
-    # print("--------------ps---------", Gout)
-    
-    # ps = Gout[s][e]['pts']
+for (s, e) in Gout.edges():
 
-    # plt.plot(ps[:, 1], ps[:, 0], 'green')
+    ps = Gout[s][e]
 
-# nodes = Gout.nodes()
+    print("--------------ps---------", ps)
+    plt.plot(ps[:, 1], ps[:, 0], 'green')
 
-# ps = np.array([nodes[i]['o'] for i in nodes])
+nodes = Gout.nodes()
 
-# plt.plot(ps[:, 1], ps[:, 0], 'r.')
+ps = np.array([nodes[i]['o'] for i in nodes])
 
-# # # title and show
-# plt.title('Build Gout')
-# plt.show()
+plt.plot(ps[:, 1], ps[:, 0], 'r.')
+
+# print("wkt_list : ", wkt_list)
+
+# # title and show
+plt.title('Build Graph')
+plt.show()
+#
+# print("------------Gout---------\n", Gout)
+# simplify_graph = True
+#
+# for value in edge_dic.values():
+#     print("--------------value---------", value['wkt_pix'])
+#
+# '----------------------------------------------------------------------------------------'
+# '----------------------------------------------------------------------------------------'
+# '----------------------------------------------------------------------------------------'
+# '----------------------------------------------------------------------------------------'
+#
+#
+# def wkt_to_G(params):
+#     '''Execute all functions'''
+#
+#     n_threads_max = 12
+#
+#     wkt_list, im_file, min_subgraph_length_pix, \
+#     node_iter, edge_iter, \
+#     min_spur_length_m, simplify_graph, \
+#     rdp_epsilon, \
+#     manually_reproject_nodes, \
+#     out_file, graph_dir, n_threads, verbose \
+#         = params
+#
+#     print("im_file:", im_file)
+#     # print("wkt_list:", wkt_list)
+#     pickle_protocol = 4
+#
+#     t0 = time.time()
+#     if verbose:
+#         print("Running wkt_list_to_nodes_edges()...")
+#     node_loc_dic, edge_dic = wkt_list_to_nodes_edges(wkt_list,
+#                                                      node_iter=node_iter,
+#                                                      edge_iter=edge_iter)
+#     t1 = time.time()
+#     if verbose:
+#         print("Time to run wkt_list_to_nodes_egdes():", t1 - t0, "seconds")
+#
+#     # print ("node_loc_dic:", node_loc_dic)
+#     # print ("edge_dic:", edge_dic)
+#
+#     if verbose:
+#         print("Creating G...")
+#     G0 = nodes_edges_to_G(node_loc_dic, edge_dic)
+#     if verbose:
+#         print("  len(G.nodes():", len(G0.nodes()))
+#         print("  len(G.edges():", len(G0.edges()))
+#     # for edge_tmp in G0.edges():
+#     #    print ("\n 0 wtk_to_G():", edge_tmp, G0.edge[edge_tmp[0]][edge_tmp[1]])
+#
+#     t2 = time.time()
+#     if verbose:
+#         print("Time to run nodes_edges_to_G():", t2 - t1, "seconds")
+#
+#     # This graph will have a unique edge for each line segment, meaning that
+#     #  many nodes will have degree 2 and be in the middle of a long edge.
+#
+#     # run clean_sub_graph() in 04_skeletonize.py?  - Nope, do it here
+#     # so that adding small terminals works better...
+#     if verbose:
+#         print("Clean out short subgraphs")
+#     G1 = clean_sub_graphs(G0, min_length=min_subgraph_length_pix,
+#                           weight='length_pix', verbose=verbose,
+#                           super_verbose=False)
+#     t3 = time.time()
+#     if verbose:
+#         print("Time to run clean_sub_graphs():", t3 - t2, "seconds")
+#     t3 = time.time()
+#     # G1 = G0
+#
+#     if len(G1) == 0:
+#         return G1
+#
+#     # print ("Simplifying graph")
+#     # G0 = ox.simplify_graph(G0.to_directed())
+#     # G0 = G0.to_undirected()
+#     # #G0 = ox.project_graph(G0)
+#     # #G_p_init = create_edge_linestrings(G_p_init, remove_redundant=True, verbose=False)
+#     # t3 = time.time()
+#     # print ("  len(G.nodes():", len(G0.nodes()))
+#     # print ("  len(G.edges():", len(G0.edges()))
+#     # print ("Time to run simplify graph:", t30 - t3, "seconds")
+#
+#     # for edge_tmp in G0.edges():
+#     #    print ("\n 1 wtk_to_G():", edge_tmp, G0.edge[edge_tmp[0]][edge_tmp[1]])
+#
+#     # edge_tmp = G0.edges()[5]
+#     # print (edge_tmp, "G0.edge props:", G0.edge[edge_tmp[0]][edge_tmp[1]])
+#
+#     # geo coords
+#     if im_file:
+#         if verbose:
+#             print("Running get_node_geo_coords()...")
+#         # let's not over multi-thread a multi-thread
+#         if n_threads > 1:
+#             n_threads_tmp = 1
+#         else:
+#             n_threads_tmp = n_threads_max
+#         G1 = get_node_geo_coords(G1, im_file, n_threads=n_threads_tmp,
+#                                  verbose=verbose)
+#         t4 = time.time()
+#         if verbose:
+#             print("Time to run get_node_geo_coords():", t4 - t3, "seconds")
+#
+#         if verbose:
+#             print("Running get_edge_geo_coords()...")
+#         # let's not over multi-thread a multi-thread
+#         if n_threads > 1:
+#             n_threads_tmp = 1
+#         else:
+#             n_threads_tmp = n_threads_max
+#         G1 = get_edge_geo_coords(G1, im_file, n_threads=n_threads_tmp,
+#                                  verbose=verbose)
+#         t5 = time.time()
+#         if verbose:
+#             print("Time to run get_edge_geo_coords():", t5 - t4, "seconds")
+#
+#         if verbose:
+#             print("pre projection...")
+#         node = list(G1.nodes())[-1]
+#         if verbose:
+#             print(node, "random node props:", G1.nodes[node])
+#             # print an edge
+#             edge_tmp = list(G1.edges())[-1]
+#             print(edge_tmp, "random edge props:", G1.get_edge_data(edge_tmp[0], edge_tmp[1]))
+#
+#         if verbose:
+#             print("projecting graph...")
+#         G_projected = ox.project_graph(G1)
+#
+#         # get geom wkt (for printing/viewing purposes)
+#         for i, (u, v, attr_dict) in enumerate(G_projected.edges(data=True)):
+#             attr_dict['geometry_wkt'] = attr_dict['geometry'].wkt
+#
+#         if verbose:
+#             print("post projection...")
+#             node = list(G_projected.nodes())[-1]
+#             print(node, "random node props:", G_projected.nodes[node])
+#             # print an edge
+#             edge_tmp = list(G_projected.edges())[-1]
+#             print(edge_tmp, "random edge props:", G_projected.get_edge_data(edge_tmp[0], edge_tmp[1]))
+#
+#         t6 = time.time()
+#         if verbose:
+#             print("Time to project graph:", t6 - t5, "seconds")
+#
+#         # simplify
+#         # G_simp = ox.simplify_graph(G_projected.to_directed())
+#         # ox.plot_graph(G_projected)
+#         # G1.edge[19][22]
+#
+#         Gout = G_projected  # G_simp
+#
+#
+#     else:
+#         Gout = G0
+#
+#     # ###########################################################################
+#     # # remove short edges?
+#     # # this is done in 04_skeletonize.remove_small_terminal()
+#     # t31 = time.time()
+#     # Gout = remove_short_edges(Gout, min_spur_length_m=min_spur_length_m)
+#     # t32 = time.time()
+#     # print("Time to remove_short_edges():", t32 - t31, "seconds")
+#     # ###########################################################################
+#
+#     if simplify_graph:
+#         if verbose:
+#             print("Simplifying graph")
+#         t7 = time.time()
+#         # 'geometry' tag breaks simplify, so maket it a wkt
+#         for i, (u, v, attr_dict) in enumerate(G_projected.edges(data=True)):
+#             if 'geometry' in attr_dict.keys():
+#                 attr_dict['geometry'] = attr_dict['geometry'].wkt
+#
+#         G0 = ox.simplify_graph(Gout.to_directed())
+#         G0 = G0.to_undirected()
+#         # print("G0")
+#         # node = list(G0.nodes())[-1]
+#         # print(node, "random node props:", G0.nodes[node])
+#
+#         # Gout = G0
+#         # reprojecting graph screws up lat lon, so convert to string?
+#         Gout = ox.project_graph(G0)
+#
+#         # print("Gout")
+#         # node = list(Gout.nodes())[-1]
+#         # print(node, "random node props:", Gout.nodes[node])
+#
+#         if verbose:
+#             print("post simplify...")
+#             node = list(Gout.nodes())[-1]
+#             print(node, "random node props:", Gout.nodes[node])
+#             # print an edge
+#             edge_tmp = list(Gout.edges())[-1]
+#             print(edge_tmp, "random edge props:", Gout.get_edge_data(edge_tmp[0], edge_tmp[1]))
+#
+#         t8 = time.time()
+#         if verbose:
+#             print("Time to run simplify graph:", t8 - t7, "seconds")
+#         # When the simplify funciton combines edges, it concats multiple
+#         #  edge properties into a list.  This means that 'geometry_pix' is now
+#         #  a list of geoms.  Convert this to a linestring with
+#         #   shaply.ops.linemergeconcats
+#
+#         # BUG, GOOF, ERROR IN OSMNX PROJECT, SO NEED TO MANUALLY SET X, Y FOR NODES!!??
+#         if manually_reproject_nodes:
+#             # make sure geometry is utm for nodes?
+#             for i, (n, attr_dict) in enumerate(Gout.nodes(data=True)):
+#                 attr_dict['x'] = attr_dict['utm_east']
+#                 attr_dict['y'] = attr_dict['utm_north']
+#
+#                 # if simplify_graph:
+#         #     print ("Simplifying graph")
+#         #     t7 = time.time()
+#         #     G0 = ox.simplify_graph(Gout.to_directed())
+#         #     Gout = G0.to_undirected()
+#         #     #Gout = ox.project_graph(G0)
+#
+#         #     t8 = time.time()
+#         #     print ("Time to run simplify graph:", t8-t7, "seconds")
+#         #     # When the simplify funciton combines edges, it concats multiple
+#         #     #  edge properties into a list.  This means that 'geometry_pix' is now
+#         #     #  a list of geoms.  Convert this to a linestring with
+#         #     #   shaply.ops.linemergeconcats
+#
+#         if verbose:
+#             print("Merge 'geometry' linestrings...")
+#         keys_tmp = ['geometry_wkt', 'geometry_pix', 'geometry_latlon_wkt',
+#                     'geometry_utm_wkt']
+#         for key_tmp in keys_tmp:
+#             if verbose:
+#                 print("Merge", key_tmp, "...")
+#             for i, (u, v, attr_dict) in enumerate(Gout.edges(data=True)):
+#                 if key_tmp not in attr_dict.keys():
+#                     continue
+#
+#                 if (i % 10000) == 0:
+#                     print(i, u, v)
+#                 geom = attr_dict[key_tmp]
+#                 # print (i, u, v, "geom:", geom)
+#                 # print ("  type(geom):", type(geom))
+#
+#                 if type(geom) == list:
+#                     # check if the list items are wkt strings, if so, create
+#                     #   linestrigs
+#                     if (type(geom[0]) == str):  # or (type(geom_pix[0]) == unicode):
+#                         geom = [shapely.wkt.loads(ztmp) for ztmp in geom]
+#                     # merge geoms
+#                     # geom = shapely.ops.linemerge(geom)
+#                     # attr_dict[key_tmp] =  geom
+#                     geom_out = shapely.ops.linemerge(geom)
+#                     # attr_dict[key_tmp] = shapely.ops.linemerge(geom)
+#                 elif type(geom) == str:
+#                     geom_out = shapely.wkt.loads(geom)
+#                     # attr_dict[key_tmp] = shapely.wkt.loads(geom)
+#                 else:
+#                     geom_out = geom
+#
+#                 # now straighten edge with rdp
+#                 if rdp_epsilon > 0:
+#                     if verbose and ((i % 10000) == 0):
+#                         print("  Applying rdp...")
+#                     coords = list(geom_out.coords)
+#                     new_coords = rdp.rdp(coords, epsilon=rdp_epsilon)
+#                     geom_out_rdp = LineString(new_coords)
+#                     geom_out_final = geom_out_rdp
+#                 else:
+#                     geom_out_final = geom_out
+#
+#                 len_out = geom_out_final.length
+#
+#                 # updata edge properties
+#                 attr_dict[key_tmp] = geom_out_final
+#
+#                 # update length
+#                 if key_tmp == 'geometry_pix':
+#                     attr_dict['length_pix'] = len_out
+#                 if key_tmp == 'geometry_utm_wkt':
+#                     attr_dict['length_utm'] = len_out
+#
+#                     # assign 'geometry' tag to geometry_wkt
+#         # !! assign 'geometry' tag to geometry_utm_wkt
+#         key_tmp = 'geometry_wkt'  # 'geometry_utm_wkt'
+#         for i, (u, v, attr_dict) in enumerate(Gout.edges(data=True)):
+#             if verbose and ((i % 10000) == 0):
+#                 print("Create 'geometry' field in edges...")
+#             line = attr_dict['geometry_utm_wkt']
+#             if type(line) == str:  # or type(line) == unicode:
+#                 attr_dict['geometry'] = shapely.wkt.loads(line)
+#             else:
+#                 attr_dict['geometry'] = attr_dict[key_tmp]
+#             attr_dict['geometry_wkt'] = attr_dict['geometry'].wkt
+#
+#             # set length
+#             attr_dict['length'] = attr_dict['geometry'].length
+#
+#             # update wkt_pix?
+#             # print ("attr_dict['geometry_pix':", attr_dict['geometry_pix'])
+#             attr_dict['wkt_pix'] = attr_dict['geometry_pix'].wkt
+#
+#             # update 'length_pix'
+#             attr_dict['length_pix'] = np.sum([attr_dict['length_pix']])
+#
+#         # Gout = ox.project_graph(Gout)
+#
+#     # print a random node and edge
+#     if verbose:
+#         node_tmp = list(Gout.nodes())[-1]
+#         print(node_tmp, "random node props:", Gout.nodes[node_tmp])
+#         # print an edge
+#         edge_tmp = list(Gout.edges())[-1]
+#         print("random edge props for edge:", edge_tmp, " = ",
+#               Gout.edges[edge_tmp[0], edge_tmp[1], 0])
+#
+#     # get a few stats (and set to graph properties)
+#     if verbose:
+#         logger1.info("Number of nodes: {}".format(len(Gout.nodes())))
+#         logger1.info("Number of edges: {}".format(len(Gout.edges())))
+#     # print ("Number of nodes:", len(Gout.nodes()))
+#     # print ("Number of edges:", len(Gout.edges()))
+#     Gout.graph['N_nodes'] = len(Gout.nodes())
+#     Gout.graph['N_edges'] = len(Gout.edges())
+#
+#     # get total length of edges
+#     tot_meters = 0
+#     for i, (u, v, attr_dict) in enumerate(Gout.edges(data=True)):
+#         tot_meters += attr_dict['length']
+#     if verbose:
+#         print("Length of edges (km):", tot_meters / 1000)
+#     Gout.graph['Tot_edge_km'] = tot_meters / 1000
+#
+#     if verbose:
+#         print("G.graph:", Gout.graph)
+#
+#     # save
+#     if len(Gout.nodes()) == 0:
+#         nx.write_gpickle(Gout, out_file, protocol=pickle_protocol)
+#         return
+#
+#     # # print a node
+#     # node = list(Gout.nodes())[-1]
+#     # print (node, "random node props:", Gout.nodes[node])
+#     # # print an edge
+#     # edge_tmp = list(Gout.edges())[-1]
+#     # #print (edge_tmp, "random edge props:", G.edges([edge_tmp[0], edge_tmp[1]])) #G.edge[edge_tmp[0]][edge_tmp[1]])
+#     # print (edge_tmp, "random edge props:", Gout.get_edge_data(edge_tmp[0], edge_tmp[1]))
+#
+#     # save graph
+#     if verbose:
+#         logger1.info("Saving graph to directory: {}".format(graph_dir))
+#     # print ("Saving graph to directory:", graph_dir)
+#     nx.write_gpickle(Gout, out_file, protocol=pickle_protocol)
+#
+#     # # save shapefile as well?
+#     # if save_shapefiles:
+#     #     logger1.info("Saving shapefile to directory: {}".format(graph_dir))
+#     #     try:
+#     #         ox.save_graph_shapefile(G, filename=image_id.split('.')[0] , folder=graph_dir, encoding='utf-8')
+#     #     except:
+#     #         print("Cannot save shapefile...")
+#     #     #out_file2 = os.path.join(graph_dir, image_id.split('.')[0] + '.graphml')
+#     #     #ox.save_graphml(G, image_id.split('.')[0] + '.graphml', folder=graph_dir)
+#     #
+#     # # plot, if desired
+#     # if make_plots:
+#     #     print ("Plotting graph...")
+#     #     outfile_plot = os.path.join(graph_dir, image_id)
+#     #     print ("outfile_plot:", outfile_plot)
+#     #     ox.plot_graph(G, fig_height=9, fig_width=9,
+#     #                   #save=True, filename=outfile_plot, margin=0.01)
+#     #                   )
+#     #     #plt.tight_layout()
+#     #     plt.savefig(outfile_plot, dpi=400)
+#
+#     t7 = time.time()
+#     if verbose:
+#         print("Total time to run wkt_to_G():", t7 - t0, "seconds")
+#
+#     return  # Gout
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# #
+# # nodes = Gout.nodes()
+# #
+# # ps = np.array([nodes[i]['o'] for i in nodes])
+# #
+# # plt.plot(ps[:, 1], ps[:, 0], 'r.')
+# #
+# # # # title and show
+# # plt.title('Build Gout')
+# # plt.show()
