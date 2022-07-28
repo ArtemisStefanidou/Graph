@@ -576,20 +576,44 @@ simplify_graph = True
 
 
 plt.imshow(img, cmap='gray')
+"-----------------------------------------HERE----------------------------------------------------------"
+# list_Gout = list(Gout.edges(data=True))
+# # Create a Numpy Array of integers
+# list_edges = []
+# for i in range(0,len(list_Gout)-1):
+#     list_edges.append((list_Gout[i][2]['start_loc_pix'], list_Gout[i][2]['end_loc_pix']))
+#
+# edges_npArray = np.array(list_edges)
+# print("----------------------------HERE-------------------", edges_npArray)
+# print("----------------------------HERE-------------------", list_edges)
+# print("----------------------------Gout.edges.data()-------------------", Gout.edges.data())
+
+pos = nx.circular_layout(Gout)
+
+edges = Gout.edges()
+
+weight = []
+
+for (u,v,attrib_dict) in list(Gout.edges.data()):
+    weight.append(attrib_dict['start'])
+
+
+nx.draw(Gout)
+plt.show()
 
 
 for (s, e) in Gout.edges():
-    print("--------------Gout.edges().data---------", Gout.edges.data())
+    # print("--------------Gout.edges().data---------", Gout.edges.data())
     list_Gout = list(Gout.edges(data=True))
-    print("--------------list(Gout.edges(data=True)) ---------", list_Gout[0][2]['wkt_pix'][12])
-    print("--------------type list(Gout.edges(data=True)) ---------", type(list_Gout[0][2]['wkt_pix']))
-    print("--------------end_loc_pix ---------", list_Gout[0][2]['end_loc_pix'])
-    print("--------------start_loc_pix ---------", list_Gout[0][2]['start_loc_pix'])
+    # print("--------------list(Gout.edges(data=True)) ---------", list_Gout[0][2]['wkt_pix'][12])
+    # print("--------------type list(Gout.edges(data=True)) ---------", type(list_Gout[0][2]['wkt_pix']))
+    # print("--------------end_loc_pix ---------", list_Gout[0][2]['end_loc_pix'])
+    # print("--------------start_loc_pix ---------", list_Gout[0][2]['start_loc_pix'])
     # https: // thispointer.com / append - add - an - element - to - numpy - array - in -python - 3 - ways /
     ps = Gout[s][e]
 
-    print("--------------ps---------", ps)
-    plt.plot(ps[:, 1], ps[:, 0], 'green')
+    # print("--------------ps---------", ps)
+    plt.plot(list_edges[:, 1], list_edges[:, 0], 'green')
 
 nodes = Gout.nodes()
 
