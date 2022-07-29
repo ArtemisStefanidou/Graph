@@ -27,7 +27,7 @@ from collections import OrderedDict #, defaultdict
 import shapely.wkt
 import shapely.ops
 from shapely.geometry import mapping, Point, LineString
-
+import osmnx as ox
 
 linestring = "LINESTRING {}"
 
@@ -343,6 +343,11 @@ a = np.array([[1, 2],
 # print("--------------np.array-----------\n", type(a))
 
 # print("--------------graph edges---------", graph)
+# print("--------------graph type---------", type(graph))
+# print("--------------graph edges type---------", type(graph.edges()))
+
+# print("--------------graph edges data---------", graph.edges.data())
+
 for (s, e) in graph.edges():
     # print("--------------ps---------", graph)
 
@@ -351,18 +356,28 @@ for (s, e) in graph.edges():
     # print("--------------ps---------", ps)
     # print("--------------ps[0] type---------", type(ps[0]))
 
+    print("--ps list 1--", ps[:, 1])
+    print("--ps list 0--", ps[:, 0])
     plt.plot(ps[:, 1], ps[:, 0], 'green')
 
 nodes = graph.nodes()
 
 ps = np.array([nodes[i]['o'] for i in nodes])
 
-print("--------------nodes---------", ps)
-print("--------------nodes len---------", len(ps))
+# print("--------------nodes---------", ps)
+# print("--------------nodes len---------", len(ps))
 
 plt.plot(ps[:, 1], ps[:, 0], 'r.')
 
-print("wkt_list : ", wkt_list)
+# print("Total number of nodes: ", int(graph.number_of_nodes()))
+# print("Total number of edges: ", int(graph.number_of_edges()))
+# print("List of all nodes: ", list(graph.nodes()))
+# print("List of all edges: ", list(graph.edges(data = True)))
+# print("Degree for all nodes: ", dict(graph.degree()))
+# # print("Total number of self-loops: ", int(graph.number_of_selfloops()))
+# # print("List of all nodes with self-loops: ", list(graph.nodes_with_selfloops()))
+#
+# print("wkt_list : ", wkt_list)
 
 # # title and show
 plt.title('Build Graph')
@@ -568,12 +583,13 @@ node_loc_dic, edge_dic = wkt_list_to_nodes_edges(wkt_list, node_iter=10000,edge_
 
 # print("node_loc_dic : ", node_loc_dic)
 # print("edge_dic : ", edge_dic)
+'----------------------WKT_TO-GRAPH----------------'
 
 G0 = nodes_edges_to_G(node_loc_dic, edge_dic)  
 
 G1 = clean_sub_graphs(G0, min_length=20, weight='length_pix', verbose=True, super_verbose=False)
 
-Gout = G1
+Gout = G0
 # print("--------------Gout type---------", type(Gout))
 simplify_graph = True
 
@@ -595,13 +611,20 @@ pos = nx.circular_layout(Gout)
 
 edges = Gout.edges()
 
-weight = []
 
+# print("--------Gout.edges.data()-----------", Gout.edges.data())
+x_pix = []
+y_pix = []
+# ox.plot_graph(Gout)
 for (u,v,attrib_dict) in list(Gout.edges.data()):
-    # weight.append(attrib_dict['start'])
-    plt.plot(attrib_dict['start_loc_pix'], attrib_dict['end_loc_pix'], 'green')
-    # print("-->", (attrib_dict['start_loc_pix'], attrib_dict['end_loc_pix']))
+    print("yolo", Gout[u][v]['start_loc_pix'])
+    x_pix.append(attrib_dict['start_loc_pix'])
+    y_pix.append(attrib_dict['end_loc_pix'])
 
+
+print("-->", x_pix)
+print("-->", y_pix)
+plt.plot(x_pix, y_pix, 'green')
 # nx.draw(Gout)
 # print("(---------------------------------------------)", list(Gout.nodes.data()))
 nodes_list = []
@@ -611,8 +634,8 @@ for (u,attrib_dict) in list(Gout.nodes.data()):
     nodes_list.append((attrib_dict['x_pix'], attrib_dict['y_pix']))
 
 nodes_nparray = np.array(nodes_list)
-print("(------------------------nodes_list---------------------)", nodes_nparray)
-print("(------------------------nodes_list len---------------------)", len(nodes_nparray))
+# print("(------------------------nodes_list---------------------)", nodes_nparray)
+# print("(------------------------nodes_list len---------------------)", len(nodes_nparray))
 plt.show()
 
 
