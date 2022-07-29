@@ -339,23 +339,26 @@ import numpy as np
 a = np.array([[1, 2],
               [3, 4]])
 
-print("--------------np.array-----------\n", a)
-print("--------------np.array-----------\n", type(a))
+# print("--------------np.array-----------\n", a)
+# print("--------------np.array-----------\n", type(a))
 
-print("--------------graph edges---------", graph)
+# print("--------------graph edges---------", graph)
 for (s, e) in graph.edges():
     # print("--------------ps---------", graph)
 
-    print("--------------graph---------", graph[s][e])
+    # print("--------------graph---------", graph[s][e])
     ps = graph[s][e]['pts']
-    print("--------------ps---------", ps)
-    print("--------------ps[0] type---------", type(ps[0]))
+    # print("--------------ps---------", ps)
+    # print("--------------ps[0] type---------", type(ps[0]))
 
     plt.plot(ps[:, 1], ps[:, 0], 'green')
 
 nodes = graph.nodes()
 
 ps = np.array([nodes[i]['o'] for i in nodes])
+
+print("--------------nodes---------", ps)
+print("--------------nodes len---------", len(ps))
 
 plt.plot(ps[:, 1], ps[:, 0], 'r.')
 
@@ -570,8 +573,8 @@ G0 = nodes_edges_to_G(node_loc_dic, edge_dic)
 
 G1 = clean_sub_graphs(G0, min_length=20, weight='length_pix', verbose=True, super_verbose=False)
 
-Gout = G0
-print("--------------Gout type---------", type(Gout))
+Gout = G1
+# print("--------------Gout type---------", type(Gout))
 simplify_graph = True
 
 
@@ -595,37 +598,48 @@ edges = Gout.edges()
 weight = []
 
 for (u,v,attrib_dict) in list(Gout.edges.data()):
-    weight.append(attrib_dict['start'])
+    # weight.append(attrib_dict['start'])
+    plt.plot(attrib_dict['start_loc_pix'], attrib_dict['end_loc_pix'], 'green')
+    # print("-->", (attrib_dict['start_loc_pix'], attrib_dict['end_loc_pix']))
 
+# nx.draw(Gout)
+# print("(---------------------------------------------)", list(Gout.nodes.data()))
+nodes_list = []
+for (u,attrib_dict) in list(Gout.nodes.data()):
+    # weight.append(attrib_dict['start'])
+    plt.plot(attrib_dict['x_pix'], attrib_dict['y_pix'], 'r.')
+    nodes_list.append((attrib_dict['x_pix'], attrib_dict['y_pix']))
 
-nx.draw(Gout)
+nodes_nparray = np.array(nodes_list)
+print("(------------------------nodes_list---------------------)", nodes_nparray)
+print("(------------------------nodes_list len---------------------)", len(nodes_nparray))
 plt.show()
 
 
-for (s, e) in Gout.edges():
+# for (s, e) in Gout.edges():
     # print("--------------Gout.edges().data---------", Gout.edges.data())
-    list_Gout = list(Gout.edges(data=True))
+    # list_Gout = list(Gout.edges(data=True))
     # print("--------------list(Gout.edges(data=True)) ---------", list_Gout[0][2]['wkt_pix'][12])
     # print("--------------type list(Gout.edges(data=True)) ---------", type(list_Gout[0][2]['wkt_pix']))
     # print("--------------end_loc_pix ---------", list_Gout[0][2]['end_loc_pix'])
     # print("--------------start_loc_pix ---------", list_Gout[0][2]['start_loc_pix'])
     # https: // thispointer.com / append - add - an - element - to - numpy - array - in -python - 3 - ways /
-    ps = Gout[s][e]
+    # ps = Gout[s][e]
 
     # print("--------------ps---------", ps)
-    plt.plot(list_edges[:, 1], list_edges[:, 0], 'green')
+    # plt.plot(list_edges[:, 1], list_edges[:, 0], 'green')
 
-nodes = Gout.nodes()
+# nodes = Gout.nodes()
 
-ps = np.array([nodes[i]['o'] for i in nodes])
+# ps = np.array([nodes[i]['o'] for i in nodes])
 
-plt.plot(ps[:, 1], ps[:, 0], 'r.')
+# plt.plot(ps[:, 1], ps[:, 0], 'r.')
 
 # print("wkt_list : ", wkt_list)
 
 # # title and show
-plt.title('Build Graph')
-plt.show()
+# plt.title('Build Graph')
+# plt.show()
 
 '------- It is a multi graph -----------------'
 
