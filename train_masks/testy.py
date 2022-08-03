@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jun  3 13:28:47 2022
-
 @author: USER
 """
 
@@ -358,6 +357,7 @@ for (s, e) in graph.edges():
 
     print("--ps list 1--", ps[:, 1])
     print("--ps list 0--", ps[:, 0])
+    
     plt.plot(ps[:, 1], ps[:, 0], 'green')
 
 nodes = graph.nodes()
@@ -617,14 +617,19 @@ x_pix = []
 y_pix = []
 # ox.plot_graph(Gout)
 for (u,v,attrib_dict) in list(Gout.edges.data()):
-    print("yolo", Gout[u][v]['start_loc_pix'])
-    x_pix.append(attrib_dict['start_loc_pix'])
-    y_pix.append(attrib_dict['end_loc_pix'])
+    
+    x_pix = []
+    y_pix = []
+    
+    x_pix.append(attrib_dict['start_loc_pix'][0])
+    x_pix.append(attrib_dict['end_loc_pix'][0])
+    y_pix.append(attrib_dict['start_loc_pix'][1])
+    y_pix.append(attrib_dict['end_loc_pix'][1])
+    plt.plot(x_pix, y_pix, 'green')
 
-
-print("-->", x_pix)
-print("-->", y_pix)
-plt.plot(x_pix, y_pix, 'green')
+#print("-->", x_pix)
+#print("-->", y_pix)
+#plt.plot(x_pix, y_pix, 'green')
 # nx.draw(Gout)
 # print("(---------------------------------------------)", list(Gout.nodes.data()))
 nodes_list = []
