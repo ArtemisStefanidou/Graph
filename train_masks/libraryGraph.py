@@ -10,6 +10,10 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from shapely.geometry import Point, LineString
 import shapely.wkt
+import osmnx as ox
+from multiprocessing.pool import Pool
+import utm
+from osgeo import gdal, ogr, osr
 
 # ====================================================== 04 =================================================================== #
 '''---line_points_dist---'''
@@ -530,7 +534,94 @@ def wkt_to_graph(wkt_list):
     
     Gout = G1
     
-    return Gout
+    
+    
+
+    #print('Gout', Gout.edges.data())
+    
+    #G_proj = ox.project_graph(Gout)
+    
+    
+    
+    
+    
+    '--------------------------------------------------'
+
+    #G1 = get_node_geo_coords(G1)
+
+    '''G_projected = ox.project_graph(G1)
+    
+    print('stokos-------->', )
+    # get geom wkt (for printing/viewing purposes)
+    for i,(u,v,attr_dict) in enumerate(G_projected.edges(data=True)):
+        attr_dict['geometry_wkt'] = attr_dict['geometry'].wkt
+
+    node = list(G_projected.nodes())[-1]
+    print(node, "random node props:", G_projected.nodes[node])
+    # print an edge
+    edge_tmp = list(G_projected.edges())[-1]
+    print(edge_tmp, "random edge props:", G_projected.get_edge_data(edge_tmp[0], edge_tmp[1]))
+
+       
+    Gout = G_projected #G_simp'''
+    # print ("Simplifying graph")
+    # #G_p_init = create_edge_linestrings(G_p_init, remove_redundant=True, verbose=False)
+    # t3 = time.time()
+    # print ("  len(G.nodes():", len(G0.nodes()))
+    # print ("  len(G.edges():", len(G0.edges()))
+        
+    Gout = Gout.to_directed()
+    print('-------TYPE-------', type(Gout))
+    for (u,v,attrib_dict) in list(Gout.edges.data()):
+        print('-------TYPE ATTRIBUTE-------', type(attrib_dict))
+        break
+    
+    
+    
+    for (u,v,attrib_dict) in list(Gout.edges.data()):
+        
+        key = 'wkt_pix'
+        del attrib_dict[key]
+        key = 'geometry_pix'
+        del attrib_dict[key]
+       
+    for (u,attrib_dict) in list(Gout.nodes.data()):
+        print(attrib_dict)
+        key = 'x_pix'
+        attrib_dict["x"] = attrib_dict[key]
+        del attrib_dict[key]
+        key = 'y_pix'
+        attrib_dict["y"] = attrib_dict[key]
+        del attrib_dict[key]
+        
+    
+    #print('################################################1o', Gout.edges.data(), Gout.nodes.data())
+    
+    
+    '''G = nx.MultiDiGraph()
+ 
+    #G = [(10002, 10003, {'start': 10002, 'start_loc_pix': (1084.0, 1.0), 'end': 10003, 'end_loc_pix': (1074.0, 5.0), 'length_pix': 10.770329614269007, 'osmid': 1})]
+    G.add_node(10002, osmid=10002, x_pix=1084.0, y_pix=1.0)
+    G.add_node(10003, osmid=10002, x_pix=1074.0, y_pix=5.0)
+    G.add_edge(10002, 10003, start=10002, start_loc_pix=(1084.0, 1.0), end=10003, end_loc_pix=(1074.0, 5.0), length_pix=10.770329614269007, osmid=1)
+    #print('################################################2o', G.edges.data(), G.nodes.data())'''
+    G0 = ox.simplify_graph(Gout)
+    G0 = G0.to_undirected()
+    #G0 = ox.project_graph(G0)
+    for (u,v,attrib_dict) in list(G0.edges.data()):
+        print(G0.edges.data())
+        #print('data', attrib_dict['geometry'])
+        
+    for (u,attrib_dict) in list(G0.nodes.data()):
+        key = 'x'
+        attrib_dict["x_pix"] = attrib_dict[key]
+        del attrib_dict[key]
+        key = 'y'
+        attrib_dict["y_pix"] = attrib_dict[key]
+        del attrib_dict[key]
+    print("#######################################g", G0.edges.data())
+    return G0
+  
     
 # ====================================================== Plot Graphs =================================================================== #
 def plot_Graph(graph,img):
@@ -539,6 +630,7 @@ def plot_Graph(graph,img):
     
     if str(type(graph)) == "<class 'networkx.classes.graph.Graph'>" :
         
+        #graph = ox.simplify_graph(graph.to_directed())
         '---plot edges---'
         for (s, e) in graph.edges():
     
@@ -577,3 +669,127 @@ def plot_Graph(graph,img):
         # # title and show
         plt.title('Build Graph')
         plt.show()
+    
+    
+def get_node_geo_coords(G, im_file=False, fix_utm_zone=True, n_threads=12,
+                        verbose=False):
+    # get pixel params
+    params = []
+    nn = len(G.nodes())
+    for i, (n, attr_dict) in enumerate(G.nodes(data=True)):
+        # if verbose and ((i % 1000) == 0):
+        #     print (i, "/", nn, "node:", n)
+        x_pix, y_pix = attr_dict['x_pix'], attr_dict['y_pix']
+        params.append((n, x_pix, y_pix, im_file))
+
+    if verbose:
+        print("node params[:5]:", params[:5])
+        
+    n_threads = min(n_threads, nn)
+    # execute
+    print("Computing geo coords for nodes (" + str(n_threads) + " threads)...")
+    if n_threads > 1:
+        pool = Pool(n_threads)
+        coords_dict_list = pool.map(pixelToGeoCoord, params)
+    else:
+        coords_dict_list = pixelToGeoCoord(params[0])
+
+    # combine the disparate dicts
+    coords_dict = {}
+    for d in coords_dict_list:
+        coords_dict.update(d)
+    if verbose:
+        print("  nodes: list(coords_dict)[:5]:", list(coords_dict)[:5])
+
+    # update data
+    print ("Updating data properties")
+    utm_letter = 'Oooops'
+    for i, (n, attr_dict) in enumerate(G.nodes(data=True)):
+        if verbose and ((i % 5000) == 0):
+            print (i, "/", nn, "node:", n)
+            
+        lon, lat = coords_dict[n]
+        # # if (i % 1000) == 0:
+        # #     print ("node", i, "/", nn, attr_dict)
+        # x_pix, y_pix = attr_dict['x_pix'], attr_dict['y_pix']
+        
+        # targetSR = osr.SpatialReference()
+        # targetSR.ImportFromEPSG(4326)
+        # lon, lat = pixelToGeoCoord(x_pix, y_pix, im_file, targetSR=targetSR)
+        
+        # fix zone
+        if i == 0 or fix_utm_zone==False:
+            [utm_east, utm_north, utm_zone, utm_letter] =\
+                        utm.from_latlon(lat, lon)
+            if verbose and (i==0):
+                print("utm_letter:", utm_letter)
+                print("utm_zone:", utm_zone)
+        else:
+            [utm_east, utm_north, _, _] = utm.from_latlon(lat, lon,
+                force_zone_number=utm_zone, force_zone_letter=utm_letter)
+                        
+        if lat > 90:
+            print("lat > 90, returning:", n, attr_dict)
+            return
+        attr_dict['lon'] = lon
+        attr_dict['lat'] = lat
+        attr_dict['utm_east'] = utm_east
+        attr_dict['utm_zone'] = utm_zone
+        attr_dict['utm_letter'] = utm_letter
+        attr_dict['utm_north'] = utm_north        
+        attr_dict['x'] = lon
+        attr_dict['y'] = lat
+
+        if verbose and ((i % 5000) == 0):
+            # print ("node", i, "/", nn, attr_dict)
+            print ("  node, attr_dict:", n, attr_dict)
+
+    return G
+
+
+
+def pixelToGeoCoord(params):
+    '''from spacenet geotools'''
+    # lon, lat = pixelToGeoCoord(x_pix, y_pix, im_file, targetSR=targetSR)
+    #         params.append((x_pix, y_pix, im_file, targetSR))
+
+    sourceSR = ''
+    geomTransform = ''
+    targetSR = osr.SpatialReference()
+    targetSR.ImportFromEPSG(4326)
+
+    identifier, xPix, yPix, inputRaster = params 
+
+    if targetSR =='':
+        performReprojection=False
+        targetSR = osr.SpatialReference()
+        targetSR.ImportFromEPSG(4326)
+    else:
+        performReprojection=True
+
+    if geomTransform=='':
+        srcRaster = gdal.Open(inputRaster)
+        geomTransform = srcRaster.GetGeoTransform()
+
+        source_sr = osr.SpatialReference()
+        source_sr.ImportFromWkt(srcRaster.GetProjectionRef())
+
+    geom = ogr.Geometry(ogr.wkbPoint)
+    xOrigin = geomTransform[0]
+    yOrigin = geomTransform[3]
+    pixelWidth = geomTransform[1]
+    pixelHeight = geomTransform[5]
+
+    xCoord = (xPix * pixelWidth) + xOrigin
+    yCoord = (yPix * pixelHeight) + yOrigin
+    geom.AddPoint(xCoord, yCoord)
+
+    if performReprojection:
+        if sourceSR=='':
+            srcRaster = gdal.Open(inputRaster)
+            sourceSR = osr.SpatialReference()
+            sourceSR.ImportFromWkt(srcRaster.GetProjectionRef())
+        coord_trans = osr.CoordinateTransformation(sourceSR, targetSR)
+        geom.Transform(coord_trans)
+
+    return {identifier: (geom.GetX(), geom.GetY())}
