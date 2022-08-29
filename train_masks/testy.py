@@ -34,17 +34,17 @@ Created on Fri Jun  3 13:28:47 2022
 import libraryGraph as lib
 import networkx as nx
 
-
 # open and skeletonize
-pathImage = 'SN3_roads_train_AOI_3_Paris_PS-MS_img148.tif'
+#pathImage'SN3_roads_train_AOI_3_Paris_PS-MS_img148.tif'
+pathImage = 'SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif'
 img = lib.image(pathImage)
 graph = lib.skeletonizeImage(img)
 
-# ====================================================== 04 =================================================================== #
+# ========#=========================================== 04 =================================================================== #
 nx.write_gpickle(graph, "graphtest.gpickle")
 pickled_graph = nx.read_gpickle("graphtest.gpickle")
 wkt_list = lib.G_to_wkt(pickled_graph, add_small=True, verbose=False, super_verbose=False)
-
+print("wkt_list : ", wkt_list)
 lib.plot_Graph(graph,img)
 
 
