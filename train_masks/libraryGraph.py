@@ -10,10 +10,11 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from shapely.geometry import Point, LineString
 import shapely.wkt
-import osmnx as ox
 from multiprocessing.pool import Pool
+import osmnx as ox
 import utm
 from osgeo import gdal, ogr, osr
+
 
 
 # ====================================================== 04 =================================================================== #
@@ -536,36 +537,38 @@ def wkt_to_graph(wkt_list):
     im_file = 'SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif'
     n_threads_tmp = 12
     verbose = False
-    
+
+
     G1 = get_node_geo_coords(G1, im_file, n_threads=n_threads_tmp,
-                                     verbose=verbose)
-    
+                                       verbose=verbose)
+
     G1 = get_edge_geo_coords(G1, im_file, n_threads=n_threads_tmp,
                                  verbose=verbose)
-    
-    G_projected = ox.project_graph(G1)
-    
-    '''# get geom wkt (for printing/viewing purposes)
-    for i,(u,v,attr_dict) in enumerate(G_projected.edges(data=True)):
-        print('-----------------------------------------', attr_dict)
-        attr_dict['geometry_wkt'] = attr_dict['geometry'].wkt'''
-        
-    
-    Gout = G_projected
+
+    # G_projected = ox.project_graph(G1)
+
+    # Gout = G_projected
+    # '''# get geom wkt (for printing/viewing purposes)
+    # for i,(u,v,attr_dict) in enumerate(G_projected.edges(data=True)):
+    #     print('-----------------------------------------', attr_dict)
+    #     attr_dict['geometry_wkt'] = attr_dict['geometry'].wkt'''
+    #
+    #
+    # Gout = G_projected
     #print('Gout', Gout.edges.data())
-    
+
     #G_proj = ox.project_graph(Gout)
-    
-    
-    
-    
-    
+
+
+
+
+
     '--------------------------------------------------'
 
     #G1 = get_node_geo_coords(G1)
 
     '''G_projected = ox.project_graph(G1)
-    
+
     print('stokos-------->', )
     # get geom wkt (for printing/viewing purposes)
     for i,(u,v,attr_dict) in enumerate(G_projected.edges(data=True)):
@@ -577,33 +580,53 @@ def wkt_to_graph(wkt_list):
     edge_tmp = list(G_projected.edges())[-1]
     print(edge_tmp, "random edge props:", G_projected.get_edge_data(edge_tmp[0], edge_tmp[1]))
 
-       
+
     Gout = G_projected #G_simp'''
     # print ("Simplifying graph")
     # #G_p_init = create_edge_linestrings(G_p_init, remove_redundant=True, verbose=False)
     # t3 = time.time()
     # print ("  len(G.nodes():", len(G0.nodes()))
     # print ("  len(G.edges():", len(G0.edges()))
-        
-    G0 = ox.simplify_graph(Gout.to_directed())
-    G0 = G0.to_undirected()
-    
-    Gout = ox.project_graph(G0)
+
+    Gout = G1
+    # print(Gout.edges.data())
+    for (u, v, attrib_dict) in list(Gout.edges.data()):
+        key = 'geometry_pix'
+        del attrib_dict[key]
+        key = 'geometry_latlon_wkt'
+        del attrib_dict[key]
+        key = 'geometry_utm_wkt'
+        del attrib_dict[key]
+        key = 'geometry'
+        del attrib_dict[key]
+
+
+    #C:\Users\USER\anaconda3\envs\praktiki\lib\site - packages\osmnx\simplification.py
+    print('-----------------Before simplify_graph-------------------:',Gout.edges.data())
+    Gout = ox.simplify_graph(Gout.to_directed())
+    print('-----------------After simplify_graph-------------------:', Gout.edges.data())
+    # for (u, v, attrib_dict) in list(Gout.edges.data()):
+    #     if 'geometry' in attrib_dict:
+    #         print('-----------------After simplify_graph-------------------:', attrib_dict['geometry'].bounds)
+    Gout = Gout.to_undirected()
+
+
+    Gout = ox.project_graph(Gout)
     '''
     print('-------TYPE-------', type(Gout))
     for (u,v,attrib_dict) in list(Gout.edges.data()):
         print('-------TYPE ATTRIBUTE-------', type(attrib_dict))
         break
-    
-    
-    
+
+
+
     for (u,v,attrib_dict) in list(Gout.edges.data()):
-        
+
         key = 'wkt_pix'
         del attrib_dict[key]
         key = 'geometry_pix'
         del attrib_dict[key]
-       
+
     for (u,attrib_dict) in list(Gout.nodes.data()):
         print(attrib_dict)
         key = 'x_pix'
@@ -612,24 +635,24 @@ def wkt_to_graph(wkt_list):
         key = 'y_pix'
         attrib_dict["y"] = attrib_dict[key]
         del attrib_dict[key]'''
-        
-    
+
+
     #print('################################################1o', Gout.edges.data(), Gout.nodes.data())
-    
-    
+
+
     '''G = nx.MultiDiGraph()
- 
+
     #G = [(10002, 10003, {'start': 10002, 'start_loc_pix': (1084.0, 1.0), 'end': 10003, 'end_loc_pix': (1074.0, 5.0), 'length_pix': 10.770329614269007, 'osmid': 1})]
     G.add_node(10002, osmid=10002, x_pix=1084.0, y_pix=1.0)
     G.add_node(10003, osmid=10002, x_pix=1074.0, y_pix=5.0)
     G.add_edge(10002, 10003, start=10002, start_loc_pix=(1084.0, 1.0), end=10003, end_loc_pix=(1074.0, 5.0), length_pix=10.770329614269007, osmid=1)
     #print('################################################2o', G.edges.data(), G.nodes.data())'''
-    
+
     #G0 = ox.project_graph(G0)
     '''for (u,v,attrib_dict) in list(G0.edges.data()):
         print(G0.edges.data())
         #print('data', attrib_dict['geometry'])
-        
+
     for (u,attrib_dict) in list(G0.nodes.data()):
         key = 'x'
         attrib_dict["x_pix"] = attrib_dict[key]
@@ -642,6 +665,57 @@ def wkt_to_graph(wkt_list):
   
     
 # ====================================================== Plot Graphs =================================================================== #
+def plot_simplify_Graph(graph,img):
+
+    plt.imshow(img, cmap='gray')
+
+    '---plot edges---'
+    for (u, v, attrib_dict) in list(graph.edges.data()):
+
+
+        if 'wkt_pix' in attrib_dict:
+            word="LINESTRING"
+            if str(type(attrib_dict['wkt_pix'])) == "<class 'list'>":
+                x_pix = []
+                y_pix = []
+                for i in range(len(attrib_dict['wkt_pix'])-1):
+                    replaced = attrib_dict['wkt_pix'][i].replace(word, "")
+                    replaced = replaced.replace(' (', "")
+                    replaced = replaced.replace(')', "")
+
+                    split = replaced.split(',')
+                    print('----split------', split)
+                    for j in range(len(split)-1):
+                        split_xy = split[j].split(" ")
+                        print(split_xy)
+                        x_pix.append(split_xy[0])
+                        y_pix.append(split_xy[1])
+                    plt.plot(x_pix, y_pix, 'green')
+
+
+    #         # print('----wkt_pix------', type(attrib_dict['wkt_pix']))
+    #     if 'geometry' in attrib_dict:
+    #
+    #         x_pix.append(attrib_dict['geometry'].bounds[0])
+    #         x_pix.append(attrib_dict['geometry'].bounds[2])
+    #         y_pix.append(attrib_dict['geometry'].bounds[1])
+    #         y_pix.append(attrib_dict['geometry'].bounds[3])
+    #
+    # # print('----------', x_pix)
+    # plt.plot(x_pix, y_pix, 'green')
+
+    '---plot nodes---'
+    nodes_list = []
+    for (u, attrib_dict) in list(graph.nodes.data()):
+        # weight.append(attrib_dict['start'])
+        plt.plot(attrib_dict['x_pix'], attrib_dict['y_pix'], 'r.')
+        nodes_list.append((attrib_dict['x_pix'], attrib_dict['y_pix']))
+
+    # # title and show
+    plt.title('Build Graph')
+    plt.show()
+
+
 def plot_Graph(graph,img):
     
     plt.imshow(img, cmap='gray')
@@ -702,13 +776,15 @@ def get_node_geo_coords(G, im_file, fix_utm_zone=True, n_threads=12,
 
     if verbose:
         print("node params[:5]:", params[:5])
-        
+
     n_threads = min(n_threads, nn)
     # execute
     print("Computing geo coords for nodes (" + str(n_threads) + " threads)...")
     if n_threads > 1:
-        pool = Pool(n_threads)
-        coords_dict_list = pool.map(pixelToGeoCoord, params)
+        # n_threads = 1
+        # pool = Pool(n_threads)
+        # params = [(10000, 594.0, 8.0, 'SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif'), (10001, 597.0, 8.0, 'SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif')]
+        coords_dict_list = map(pixelToGeoCoord, params)
     else:
         coords_dict_list = pixelToGeoCoord(params[0])
 
@@ -725,16 +801,18 @@ def get_node_geo_coords(G, im_file, fix_utm_zone=True, n_threads=12,
     for i, (n, attr_dict) in enumerate(G.nodes(data=True)):
         if verbose and ((i % 5000) == 0):
             print (i, "/", nn, "node:", n)
-            
+
+        # print('----1o-----')
         lon, lat = coords_dict[n]
+        # print('-----2o----')
         # # if (i % 1000) == 0:
         # #     print ("node", i, "/", nn, attr_dict)
         # x_pix, y_pix = attr_dict['x_pix'], attr_dict['y_pix']
-        
+
         # targetSR = osr.SpatialReference()
         # targetSR.ImportFromEPSG(4326)
         # lon, lat = pixelToGeoCoord(x_pix, y_pix, im_file, targetSR=targetSR)
-        
+
         # fix zone
         if i == 0 or fix_utm_zone==False:
             [utm_east, utm_north, utm_zone, utm_letter] =\
@@ -745,7 +823,7 @@ def get_node_geo_coords(G, im_file, fix_utm_zone=True, n_threads=12,
         else:
             [utm_east, utm_north, _, _] = utm.from_latlon(lat, lon,
                 force_zone_number=utm_zone, force_zone_letter=utm_letter)
-                        
+
         if lat > 90:
             print("lat > 90, returning:", n, attr_dict)
             return
@@ -754,7 +832,7 @@ def get_node_geo_coords(G, im_file, fix_utm_zone=True, n_threads=12,
         attr_dict['utm_east'] = utm_east
         attr_dict['utm_zone'] = utm_zone
         attr_dict['utm_letter'] = utm_letter
-        attr_dict['utm_north'] = utm_north        
+        attr_dict['utm_north'] = utm_north
         attr_dict['x'] = lon
         attr_dict['y'] = lat
 
@@ -776,7 +854,7 @@ def pixelToGeoCoord(params):
     targetSR = osr.SpatialReference()
     targetSR.ImportFromEPSG(4326)
 
-    identifier, xPix, yPix, inputRaster = params 
+    identifier, xPix, yPix, inputRaster = params
 
     if targetSR =='':
         performReprojection=False
@@ -817,7 +895,7 @@ def pixelToGeoCoord(params):
 def get_edge_geo_coords(G, im_file, remove_pix_geom=True, fix_utm_zone=True,
                         n_threads=12, verbose=False, super_verbose=False):
     '''Get geo coords of all edges'''
-    
+
     # first, get utm letter and zone of first node in graph
     for i, (n, attr_dict) in enumerate(G.nodes(data=True)):
         x_pix, y_pix = attr_dict['x_pix'], attr_dict['y_pix']
@@ -834,12 +912,12 @@ def get_edge_geo_coords(G, im_file, remove_pix_geom=True, fix_utm_zone=True,
     params = []
     ne = len(list(G.edges()))
     for i,(u,v,attr_dict) in enumerate(G.edges(data=True)):
-        # if verbose and ((i % 1000) == 0):           
+        # if verbose and ((i % 1000) == 0):
         #     print (i, "/", ne, "edge:", u,v)
         #     print ("  attr_dict_init:", attr_dict)
 
         geom_pix = attr_dict['geometry_pix']
-        
+
         # if i == 0 :
         #     # identifier, geom_pix_wkt, im_file, utm_zone, utm_letter, verbose = params
         #     params_tmp = (identifier, geom_pix_wkt, im_file, None, None, verbose)
@@ -847,17 +925,17 @@ def get_edge_geo_coords(G, im_file, remove_pix_geom=True, fix_utm_zone=True,
         #     (lstring_latlon, lstring_utm, utm_zone, utm_letter) = list(dict_tmp.values())[0]
         #     # lstring_latlon, lstring_utm, utm_zone, utm_letter \
         #     #        = convert_pix_lstring_to_geo_raw(geom_pix, im_file)
-        #     params.append(((u,v), geom_pix.wkt, im_file, 
+        #     params.append(((u,v), geom_pix.wkt, im_file,
         #                    utm_zone, utm_letter, verbose))
-        
+
         # identifier, geom_pix_wkt, im_file, utm_zone, utm_letter, verbose = params
         if fix_utm_zone == False:
-            params.append(((u,v), geom_pix.wkt, im_file, 
+            params.append(((u,v), geom_pix.wkt, im_file,
                        None, None, super_verbose))
         else:
-            params.append(((u,v), geom_pix.wkt, im_file, 
+            params.append(((u,v), geom_pix.wkt, im_file,
                        utm_zone, utm_letter, super_verbose))
-                 
+
     if verbose:
         print("edge params[:5]:", params[:5])
 
@@ -865,8 +943,9 @@ def get_edge_geo_coords(G, im_file, remove_pix_geom=True, fix_utm_zone=True,
     # execute
     print("Computing geo coords for edges (" + str(n_threads) + " threads)...")
     if n_threads > 1:
-        pool = Pool(n_threads)
-        coords_dict_list = pool.map(convert_pix_lstring_to_geo, params)
+        # pool = Pool(n_threads)
+        # coords_dict_list = pool.map(convert_pix_lstring_to_geo, params)
+        coords_dict_list = map(convert_pix_lstring_to_geo, params)
     else:
         coords_dict_list = convert_pix_lstring_to_geo(params[0])
 
@@ -876,11 +955,11 @@ def get_edge_geo_coords(G, im_file, remove_pix_geom=True, fix_utm_zone=True,
         coords_dict.update(d)
     if verbose:
         print("  edges: list(coords_dict)[:5]:", list(coords_dict)[:5])
-    
+
     print ("Updating edge data properties")
     for i,(u,v,attr_dict) in enumerate(G.edges(data=True)):
 
-        # if verbose and ((i % 1000) == 0):           
+        # if verbose and ((i % 1000) == 0):
         #     print (i, "/", ne, "edge:", u,v)
         #     print ("  attr_dict_init:", attr_dict)
         geom_pix = attr_dict['geometry_pix']
@@ -894,34 +973,34 @@ def get_edge_geo_coords(G, im_file, remove_pix_geom=True, fix_utm_zone=True,
         attr_dict['length'] = lstring_utm.length
         attr_dict['utm_zone'] = utm_zone
         attr_dict['utm_letter'] = utm_letter
-        if verbose and ((i % 1000) == 0):           
+        if verbose and ((i % 1000) == 0):
             print ("   attr_dict_final:", attr_dict)
-            
+
         # geometry screws up osmnx.simplify function
         if remove_pix_geom:
             #attr_dict['geometry_wkt'] = lstring_latlon.wkt
             attr_dict['geometry_pix'] = geom_pix.wkt
-            
+
         # try actual geometry, not just linestring, this seems necessary for
         #  projections
         attr_dict['geometry'] = lstring_latlon
-            
+
         # ensure utm length isn't excessive
         if lstring_utm.length > 5000:
             print(u, v, "edge length too long:", attr_dict, "returning!")
             return
-            
+
     return G
 
 def convert_pix_lstring_to_geo(params):
-        
+
     '''Convert linestring in pixel coords to geo coords
     If zone or letter changes inthe middle of line, it's all screwed up, so
     force zone and letter based on first point
     (latitude, longitude, force_zone_number=None, force_zone_letter=None)
     Or just force utm zone and letter explicitly
         '''
-    
+
     identifier, geom_pix_wkt, im_file, utm_zone, utm_letter, verbose = params
     shape = shapely.wkt.loads(geom_pix_wkt)
     x_pixs, y_pixs = shape.coords.xy
@@ -940,7 +1019,7 @@ def convert_pix_lstring_to_geo(params):
                 force_zone_number=utm_zone, force_zone_letter=utm_letter)
         else:
             [utm_east, utm_north, utm_zone, utm_letter] = utm.from_latlon(lat, lon)
-        
+
 #        # If zone or letter changes in the middle of line, it's all screwed up, so
 #        # force zone and letter based on first point?
 #        if i == 0:
@@ -953,8 +1032,8 @@ def convert_pix_lstring_to_geo(params):
                 [lat, lon, utm_east, utm_north, utm_zone, utm_letter])
         coords_utm.append([utm_east, utm_north])
         coords_latlon.append([lon, lat])
-    
+
     lstring_latlon = LineString([Point(z) for z in coords_latlon])
     lstring_utm = LineString([Point(z) for z in coords_utm])
-    
-    return {identifier: (lstring_latlon, lstring_utm, utm_zone, utm_letter)}         
+
+    return {identifier: (lstring_latlon, lstring_utm, utm_zone, utm_letter)}

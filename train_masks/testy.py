@@ -58,8 +58,9 @@ simplify_graph = True
 
 Gout = lib.wkt_to_graph(wkt_list)
 
+
 # ox.plot_graph(Gout)
-lib.plot_Graph(Gout,img)
+lib.plot_simplify_Graph(Gout,img)
 
 
 
