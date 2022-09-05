@@ -30,38 +30,40 @@ Created on Fri Jun  3 13:28:47 2022
     print("node_loc_dic : ", node_loc_dic)
     print("edge_dic : ", edge_dic)
 """
+def main():
+    import libraryGraph as lib
+    import networkx as nx
 
-import libraryGraph as lib
-import networkx as nx
+    # open and skeletonize
+    #pathImage'SN3_roads_train_AOI_3_Paris_PS-MS_img148.tif'
+    #pathImage = 'SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif'
+    pathImage = "../SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif"
+    img = lib.image(pathImage)
+    graph = lib.skeletonizeImage(img)
 
-# open and skeletonize
-#pathImage'SN3_roads_train_AOI_3_Paris_PS-MS_img148.tif'
-pathImage = 'SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif'
-img = lib.image(pathImage)
-graph = lib.skeletonizeImage(img)
-
-# ========#=========================================== 04 =================================================================== #
-nx.write_gpickle(graph, "graphtest.gpickle")
-pickled_graph = nx.read_gpickle("graphtest.gpickle")
-wkt_list = lib.G_to_wkt(pickled_graph, add_small=True, verbose=False, super_verbose=False)
-print("wkt_list : ", wkt_list)
-lib.plot_Graph(graph,img)
-
-
-# ====================================================== 05 =================================================================== #
+    # ========#=========================================== 04 =================================================================== #
+    nx.write_gpickle(graph, "graphtest.gpickle")
+    pickled_graph = nx.read_gpickle("graphtest.gpickle")
+    wkt_list = lib.G_to_wkt(pickled_graph, add_small=True, verbose=False, super_verbose=False)
+    print("wkt_list : ", wkt_list)
+    lib.plot_Graph(graph,img)
 
 
-simplify_graph = True
-
-#G_projected = ox.project_graph(Gout)
+    # ====================================================== 05 =================================================================== #
 
 
-Gout = lib.wkt_to_graph(wkt_list)
+    simplify_graph = True
+
+    #G_projected = ox.project_graph(Gout)
 
 
-# ox.plot_graph(Gout)
-lib.plot_simplify_Graph(Gout,img)
+    Gout = lib.wkt_to_graph(wkt_list)
 
 
+    # ox.plot_graph(Gout)
+    # lib.plot_simplify_Graph(Gout,img)
+    lib.plot_Graph(Gout,img)
+if __name__ == "__main__":
+    main()
 
 
