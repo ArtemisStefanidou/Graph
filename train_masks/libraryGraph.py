@@ -553,6 +553,7 @@ def wkt_to_graph(wkt_list):
     simplify_graph = True
     manually_reproject_nodes = True
     rdp_epsilon = 1
+    out_file = "./SN3_roads_train_AOI_2_Vegas_PS-MS_img2.gpickle"
     #rdp_epsilon = config.rdp_epsilon
 
 
@@ -679,70 +680,21 @@ def wkt_to_graph(wkt_list):
 
         # save
         if len(Gout.nodes()) == 0:
-            #nx.write_gpickle(Gout, out_file, protocol=pickle_protocol)
+            nx.write_gpickle(Gout, out_file, protocol=pickle_protocol)
             return
-        #nx.write_gpickle(Gout, out_file, protocol=pickle_protocol)
+        nx.write_gpickle(Gout, out_file, protocol=pickle_protocol)
         print('the end')
-        G_epsg3857 = ox.project_graph(Gout, to_crs='epsg:3857')
-        # p1_tmp, p2_tmp = out_file.split('.')
-        # out_file_tmp = p1_tmp + '_3857.' + p2_tmp
+        # G_epsg3857 = ox.project_graph(Gout, to_crs='epsg:3857')
+        # print("out_file", out_file)
+        # p0_tmp, p1_tmp, p2_tmp = out_file.split('.')
+        # out_file_tmp = p0_tmp + p1_tmp + '_3857.' + p2_tmp
         # nx.write_gpickle(G_epsg3857, out_file_tmp, protocol=pickle_protocol)
-        print(type(Gout))
+        # print(type(Gout))
         return Gout
 
   
     
 # ====================================================== Plot Graphs =================================================================== #
-def plot_simplify_Graph(graph,img):
-
-    plt.imshow(img, cmap='gray')
-
-    '---plot edges---'
-    for (u, v, attrib_dict) in list(graph.edges.data()):
-
-
-        if 'wkt_pix' in attrib_dict:
-            word="LINESTRING"
-            if str(type(attrib_dict['wkt_pix'])) == "<class 'list'>":
-                x_pix = []
-                y_pix = []
-                for i in range(len(attrib_dict['wkt_pix'])-1):
-                    replaced = attrib_dict['wkt_pix'][i].replace(word, "")
-                    replaced = replaced.replace(' (', "")
-                    replaced = replaced.replace(')', "")
-
-                    split = replaced.split(',')
-
-                    for j in range(len(split)-1):
-                        split_xy = split[j].split(" ")
-                        x_pix.append(split_xy[0])
-                        y_pix.append(split_xy[1])
-                    plt.plot(x_pix, y_pix, 'green')
-
-
-    #         # print('----wkt_pix------', type(attrib_dict['wkt_pix']))
-    #     if 'geometry' in attrib_dict:
-    #
-    #         x_pix.append(attrib_dict['geometry'].bounds[0])
-    #         x_pix.append(attrib_dict['geometry'].bounds[2])
-    #         y_pix.append(attrib_dict['geometry'].bounds[1])
-    #         y_pix.append(attrib_dict['geometry'].bounds[3])
-    #
-    # # print('----------', x_pix)
-    # plt.plot(x_pix, y_pix, 'green')
-
-    '---plot nodes---'
-    nodes_list = []
-    for (u, attrib_dict) in list(graph.nodes.data()):
-        # weight.append(attrib_dict['start'])
-        plt.plot(attrib_dict['x_pix'], attrib_dict['y_pix'], 'r.')
-        nodes_list.append((attrib_dict['x_pix'], attrib_dict['y_pix']))
-
-    # # title and show
-    plt.title('Build Graph')
-    plt.show()
-
-
 def plot_Graph(graph,img):
     
     plt.imshow(img, cmap='gray')

@@ -36,7 +36,7 @@ def main():
 
     # open and skeletonize
     #pathImage'SN3_roads_train_AOI_3_Paris_PS-MS_img148.tif'
-    #pathImage = 'SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif'
+    # pathImage = 'SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif'
     pathImage = "../SN3_roads_train_AOI_2_Vegas_PS-MS_img2.tif"
     img = lib.image(pathImage)
     graph = lib.skeletonizeImage(img)
