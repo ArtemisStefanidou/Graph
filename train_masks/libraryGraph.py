@@ -1005,3 +1005,219 @@ def convert_pix_lstring_to_geo(params):
     lstring_utm = LineString([Point(z) for z in coords_utm])
 
     return {identifier: (lstring_latlon, lstring_utm, utm_zone, utm_letter)}
+
+
+# ====================================================== 08 =================================================================== #
+
+def plot_graph_pix(G, im=None, bbox=None, fig_height=6, fig_width=None, margin=0.02,
+                   axis_off=True, equal_aspect=False, bgcolor='w', show=True,
+                   save=False, close=True, file_format='png', filename='temp',
+                   default_dpi=300, annotate=False, node_color='#66ccff', node_size=15,
+                   node_alpha=1, node_edgecolor='none', node_zorder=1,
+                   edge_color='#999999', edge_linewidth=1, edge_alpha=1,
+                   edge_color_key='speed_mph', color_dict={},
+                   edge_width_key='speed_mph',
+                   edge_width_mult=1. / 25,
+                   use_geom=True,
+                   invert_xaxis=False, invert_yaxis=False,
+                   fig=None, ax=None):
+    """
+    Plot a networkx spatial graph.
+    Parameters
+    ----------
+    G : networkx multidigraph
+    bbox : tuple
+        bounding box as north,south,east,west - if None will calculate from
+        spatial extents of data. if passing a bbox, you probably also want to
+        pass margin=0 to constrain it.
+    fig_height : int
+        matplotlib figure height in inches
+    fig_width : int
+        matplotlib figure width in inches
+    margin : float
+        relative margin around the figure
+    axis_off : bool
+        if True turn off the matplotlib axis
+    equal_aspect : bool
+        if True set the axis aspect ratio equal
+    bgcolor : string
+        the background color of the figure and axis
+    show : bool
+        if True, show the figure
+    save : bool
+        if True, save the figure as an image file to disk
+    close : bool
+        close the figure (only if show equals False) to prevent display
+    file_format : string
+        the format of the file to save (e.g., 'jpg', 'png', 'svg')
+    filename : string
+        the name of the file if saving
+    default_dpi : int
+        the resolution of the image file if saving (may get altered for
+        large images)
+    annotate : bool
+        if True, annotate the nodes in the figure
+    node_color : string
+        the color of the nodes
+    node_size : int
+        the size of the nodes
+    node_alpha : float
+        the opacity of the nodes
+    node_edgecolor : string
+        the color of the node's marker's border
+    node_zorder : int
+        zorder to plot nodes, edges are always 2, so make node_zorder 1 to plot
+        nodes beneath them or 3 to plot nodes atop them
+    edge_color : string
+        the color of the edges' lines
+    edge_linewidth : float
+        the width of the edges' lines
+    edge_alpha : float
+        the opacity of the edges' lines
+    edge_width_key : str
+        optional: key in edge propwerties to determine edge width,
+        supercedes edge_linewidth, default to "speed_mph"
+    edge_width_mult : float
+        factor to rescale width for plotting, default to 1./25, which gives
+        a line width of 1 for 25 mph speed limit.
+    use_geom : bool
+        if True, use the spatial geometry attribute of the edges to draw
+        geographically accurate edges, rather than just lines straight from node
+        to node
+    Returns
+    -------
+    fig, ax : tuple
+    """
+
+    print('Begin plotting the graph...')
+    node_Xs = [float(x) for _, x in G.nodes(data='x_pix')]
+    node_Ys = [float(y) for _, y in G.nodes(data='y_pix')]
+    # node_Xs = [float(x) for _, x in G.nodes(data='x')]
+    # node_Ys = [float(y) for _, y in G.nodes(data='y')]
+
+    # get north, south, east, west values either from bbox parameter or from the
+    # spatial extent of the edges' geometries
+    if bbox is None:
+        edges = graph_to_gdfs_pix(G, nodes=False, fill_edge_geometry=True)
+        # print("plot_graph_pix():, edges.columns:", edges.columns)
+        # print("type edges['geometry_pix'].:", type(edges['geometry_pix']))
+        # print("type gpd.GeoSeries(edges['geometry_pix']):", type(gpd.GeoSeries(edges['geometry_pix'])))
+        # print("type gpd.GeoSeries(edges['geometry_pix'][0]):", type(gpd.GeoSeries(edges['geometry_pix']).iloc[0]))
+        west, south, east, north = gpd.GeoSeries(edges['geometry_pix']).total_bounds
+        # west, south, east, north = edges.total_bounds
+    else:
+        north, south, east, west = bbox
+
+    bbox_aspect_ratio = (north - south) / (east - west)
+    if fig_width is None:
+        fig_width = fig_height / bbox_aspect_ratio
+
+    if im is not None:
+        if fig == None and ax == None:
+            fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+        ax.imshow(im)
+
+    else:
+        if fig == None and ax == None:
+            fig, ax = plt.subplots(figsize=(fig_width, fig_height), facecolor=bgcolor)
+        ax.set_facecolor(bgcolor)
+
+    start_time = time.time()
+    lines = []
+    widths = []
+    edge_colors = []
+    for u, v, data in G.edges(keys=False, data=True):
+        if 'geometry_pix' in data and use_geom:
+
+            xs, ys = data['geometry_pix'].xy
+            lines.append(list(zip(xs, ys)))
+        else:
+            # if it doesn't have a geometry attribute, the edge is a straight
+            # line from node to node
+            x1 = G.nodes[u]['x_pix']
+            y1 = G.nodes[u]['y_pix']
+            x2 = G.nodes[v]['x_pix']
+            y2 = G.nodes[v]['y_pix']
+            line = [(x1, y1), (x2, y2)]
+            lines.append(line)
+
+        # get widths
+        if edge_width_key in data.keys():
+            width = int(np.rint(data[edge_width_key] * edge_width_mult))
+        else:
+            width = edge_linewidth
+        widths.append(width)
+
+        if edge_color_key and color_dict:
+            color_key_val = int(data[edge_color_key])
+            edge_colors.append(color_dict[color_key_val])
+        else:
+            edge_colors.append(edge_color)
+
+    lc = LineCollection(lines, colors=edge_colors,
+                        linewidths=widths,
+                        alpha=edge_alpha, zorder=2)
+    ax.add_collection(lc)
+    log('Drew the graph edges in {:,.2f} seconds'.format(time.time() - start_time))
+
+    # scatter plot the nodes
+    ax.scatter(node_Xs, node_Ys, s=node_size, c=node_color, alpha=node_alpha,
+               edgecolor=node_edgecolor, zorder=node_zorder)
+
+    # set the extent of the figure
+    margin_ns = (north - south) * margin
+    margin_ew = (east - west) * margin
+    ax.set_ylim((south - margin_ns, north + margin_ns))
+    ax.set_xlim((west - margin_ew, east + margin_ew))
+
+    # configure axis appearance
+    xaxis = ax.get_xaxis()
+    yaxis = ax.get_yaxis()
+
+    xaxis.get_major_formatter().set_useOffset(False)
+    yaxis.get_major_formatter().set_useOffset(False)
+
+    # the ticks in so there's no space around the plot
+    if axis_off:
+        ax.axis('off')
+        ax.margins(0)
+        ax.tick_params(which='both', direction='in')
+        xaxis.set_visible(False)
+        yaxis.set_visible(False)
+        fig.canvas.draw()
+
+    if equal_aspect:
+        # make everything square
+        ax.set_aspect('equal')
+        fig.canvas.draw()
+    else:
+        # if the graph is not projected, conform the aspect ratio to not stretch the plot
+        if G.graph['crs'] == ox_settings.default_crs:
+            coslat = np.cos((min(node_Ys) + max(node_Ys)) / 2. / 180. * np.pi)
+            ax.set_aspect(1. / coslat)
+            fig.canvas.draw()
+
+    # annotate the axis with node IDs if annotate=True
+    if annotate:
+        for node, data in G.nodes(data=True):
+            ax.annotate(node, xy=(data['x_pix'], data['y_pix']))
+
+    # update dpi, if image
+    if im is not None:
+
+        max_dpi = int(23000 / max(fig_height, fig_width))
+        h, w = im.shape[:2]
+        # try to set dpi to native resolution of imagery
+        desired_dpi = max(default_dpi, 1.0 * h / fig_height)
+        # desired_dpi = max(default_dpi, int( np.max(im.shape) / max(fig_height, fig_width) ) )
+        dpi = int(np.min([max_dpi, desired_dpi]))
+    else:
+        dpi = default_dpi
+
+    # # save and show the figure as specified
+    # fig, ax = save_and_show(fig, ax, save, show, close, filename,
+    #                         file_format, dpi, axis_off,
+    #                         invert_xaxis=invert_xaxis,
+    #                         invert_yaxis=invert_yaxis)
+    # return fig, ax
+
