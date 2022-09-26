@@ -15,6 +15,11 @@ import osmnx as ox
 import utm
 from osgeo import gdal, ogr, osr
 import rdp as rdp
+import geopandas as gpd
+from matplotlib.collections import LineCollection
+import osmnx.settings as ox_settings
+import os
+import skimage.io
 import argparse as argparse
 import json as json
 '''----------To do----------'''
@@ -1008,6 +1013,232 @@ def convert_pix_lstring_to_geo(params):
 
 
 # ====================================================== 08 =================================================================== #
+def graph_to_gdfs_pix(G, nodes=True, edges=True, node_geometry=True, fill_edge_geometry=True):
+    """
+    Convert a graph into node and/or edge GeoDataFrames
+    Parameters
+    ----------
+    G : networkx multidigraph
+    nodes : bool
+        if True, convert graph nodes to a GeoDataFrame and return it
+    edges : bool
+        if True, convert graph edges to a GeoDataFrame and return it
+    node_geometry : bool
+        if True, create a geometry column from node x and y data
+    fill_edge_geometry : bool
+        if True, fill in missing edge geometry fields using origin and
+        destination nodes
+    Returns
+    -------
+    GeoDataFrame or tuple
+        gdf_nodes or gdf_edges or both as a tuple
+    """
+
+    if not (nodes or edges):
+        raise ValueError('You must request nodes or edges, or both.')
+
+    to_return = []
+
+    if nodes:
+
+        #start_time = time.time()
+
+        nodes = {node:data for node, data in G.nodes(data=True)}
+        gdf_nodes =gpd.GeoDataFrame(nodes).T
+
+        if node_geometry:
+            #gdf_nodes['geometry'] = gdf_nodes.apply(lambda row: Point(row['x'], row['y']), axis=1)
+            gdf_nodes['geometry_pix'] = gdf_nodes.apply(lambda row: Point(row['x_pix'], row['y_pix']), axis=1)
+
+        gdf_nodes.crs = G.graph['crs']
+        gdf_nodes.gdf_name = '{}_nodes'.format(G.graph['name'])
+        gdf_nodes['osmid'] = gdf_nodes['osmid'].astype(np.int64).map(make_str)
+
+        to_return.append(gdf_nodes)
+
+    if edges:
+
+        #start_time = time.time()
+
+        # create a list to hold our edges, then loop through each edge in the
+        # graph
+        edges = []
+        for u, v, key, data in G.edges(keys=True, data=True):
+
+            # for each edge, add key and all attributes in data dict to the
+            # edge_details
+            edge_details = {'u':u, 'v':v, 'key':key}
+            for attr_key in data:
+                edge_details[attr_key] = data[attr_key]
+
+             # if edge doesn't already have a geometry attribute, create one now
+            # if fill_edge_geometry==True
+            if 'geometry_pix' not in data:
+                if fill_edge_geometry:
+                    point_u = Point((G.nodes[u]['x_pix'], G.nodes[u]['y_pix']))
+                    point_v = Point((G.nodes[v]['x_pix'], G.nodes[v]['y_pix']))
+                    edge_details['geometry_pix'] = LineString([point_u, point_v])
+                else:
+                    edge_details['geometry_pix'] = np.nan
+
+            # # if edge doesn't already have a geometry attribute, create one now
+            # # if fill_edge_geometry==True
+            # if 'geometry' not in data:
+            #     if fill_edge_geometry:
+            #         point_u = Point((G.nodes[u]['x'], G.nodes[u]['y']))
+            #         point_v = Point((G.nodes[v]['x'], G.nodes[v]['y']))
+            #         edge_details['geometry'] = LineString([point_u, point_v])
+            #     else:
+            #         edge_details['geometry'] = np.nan
+
+            edges.append(edge_details)
+
+        # create a GeoDataFrame from the list of edges and set the CRS
+        gdf_edges = gpd.GeoDataFrame(edges)
+        gdf_edges.crs = G.graph['crs']
+        gdf_edges.gdf_name = '{}_edges'.format(G.graph['name'])
+
+        to_return.append(gdf_edges)
+
+    if len(to_return) > 1:
+        return tuple(to_return)
+    else:
+        return to_return[0]
+
+def color_func(speed):
+    if speed < 15:
+        color = '#ffffb2'
+    elif speed >= 15 and speed < 25:
+        color = '#ffe281'
+#     if speed < 17.5:
+#         color = '#ffffb2'
+#     elif speed >= 17.5 and speed < 25:
+#         color = '#ffe281'
+    elif speed >= 25 and speed < 35:
+        color = '#fec357'
+    elif speed >= 35 and speed < 45:
+        color = '#fe9f45'
+    elif speed >= 45 and speed < 55:
+        color = '#fa7634'
+    elif speed >= 55 and speed < 65:
+        color = '#f24624'
+    elif speed >= 65 and speed < 75:
+        color = '#da2122'
+    elif speed >= 75:
+        color = '#bd0026'
+    return color
+
+def make_color_dict_list(max_speed=80, verbose=False):
+    color_dict = {}
+    color_list = []
+    for speed in range(max_speed):
+        c = color_func(speed)
+        color_dict[speed] = c
+        color_list.append(c)
+    if verbose:
+        print("color_dict:", color_dict)
+        print("color_list:", color_list)
+
+    return color_dict, color_list
+
+def save_and_show(fig, ax, save, show, close, filename, file_format, dpi,
+                  axis_off, tight_layout=False,
+                  invert_xaxis=False, invert_yaxis=True,
+                  verbose=False):
+    """
+    Save a figure to disk and show it, as specified.
+    Assume filename holds entire path to file
+
+    Parameters
+    ----------
+    fig : figure
+    ax : axis
+    save : bool
+        whether to save the figure to disk or not
+    show : bool
+        whether to display the figure or not
+    close : bool
+        close the figure (only if show equals False) to prevent display
+    filename : string
+        the name of the file to save
+    file_format : string
+        the format of the file to save (e.g., 'jpg', 'png', 'svg')
+    dpi : int
+        the resolution of the image file if saving
+    axis_off : bool
+        if True matplotlib axis was turned off by plot_graph so constrain the
+        saved figure's extent to the interior of the axis
+    Returns
+    -------
+    fig, ax : tuple
+    """
+
+    if invert_yaxis:
+        ax.invert_yaxis()
+    if invert_xaxis:
+        ax.invert_xaxis()
+
+    # save the figure if specified
+    if save:
+        # start_time = time.time()
+
+        # create the save folder if it doesn't already exist
+        if not os.path.exists(os.path.dirname("./Save")):
+            os.mkdir("./Save")
+            os.chmod(os.path.join("./", "Save"), 0o777)
+
+        path_filename = "./Save"  # os.path.join(settings.imgs_folder, os.extsep.join([filename, file_format]))
+
+        if file_format == 'svg':
+            # if the file_format is svg, prep the fig/ax a bit for saving
+            ax.axis('off')
+            ax.set_position([0, 0, 1, 1])
+            ax.patch.set_alpha(0.)
+            fig.patch.set_alpha(0.)
+            fig.savefig(path_filename, bbox_inches=0, format=file_format, facecolor=fig.get_facecolor(),
+                        transparent=True)
+        else:
+            if axis_off:
+                # if axis is turned off, constrain the saved figure's extent to
+                # the interior of the axis
+                extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+            else:
+                extent = 'tight'
+
+            if tight_layout:
+                # extent = 'tight'
+                fig.gca().set_axis_off()
+                fig.subplots_adjust(top=1, bottom=0, right=1, left=0,
+                                    hspace=0, wspace=0)
+                plt.margins(0, 0)
+                # fig.gca().xaxis.set_major_locator(NullLocator())
+                # fig.gca().yaxis.set_major_locator(NullLocator())
+                # fig.savefig(path_filename, dpi=dpi, bbox_inches=extent,
+                #             format=file_format, facecolor=fig.get_facecolor(),
+                #             transparent=True, pad_inches=0)
+            else:
+                print("To do save fig")
+
+                # fig.savefig(path_filename, dpi=dpi, bbox_inches=extent,
+                #             format=file_format, facecolor=fig.get_facecolor(),
+                #             transparent=True)
+
+        # if verbose:
+        #     print('Saved the figure to disk in {:,.2f} seconds'.format(time.time() - start_time))
+
+    # show the figure if specified
+    print("show", show)
+    show = True
+    if show:
+        # start_time = time.time()
+        plt.show()
+        # if verbose:
+        #     print('Showed the plot in {:,.2f} seconds'.format(time.time() - start_time))
+    # if show=False, close the figure if close=True to prevent display
+    elif close:
+        plt.close()
+
+    return fig, ax
 
 def plot_graph_pix(G, im=None, bbox=None, fig_height=6, fig_width=None, margin=0.02,
                    axis_off=True, equal_aspect=False, bgcolor='w', show=True,
@@ -1098,11 +1329,13 @@ def plot_graph_pix(G, im=None, bbox=None, fig_height=6, fig_width=None, margin=0
     # get north, south, east, west values either from bbox parameter or from the
     # spatial extent of the edges' geometries
     if bbox is None:
+
         edges = graph_to_gdfs_pix(G, nodes=False, fill_edge_geometry=True)
         # print("plot_graph_pix():, edges.columns:", edges.columns)
         # print("type edges['geometry_pix'].:", type(edges['geometry_pix']))
         # print("type gpd.GeoSeries(edges['geometry_pix']):", type(gpd.GeoSeries(edges['geometry_pix'])))
         # print("type gpd.GeoSeries(edges['geometry_pix'][0]):", type(gpd.GeoSeries(edges['geometry_pix']).iloc[0]))
+
         west, south, east, north = gpd.GeoSeries(edges['geometry_pix']).total_bounds
         # west, south, east, north = edges.total_bounds
     else:
@@ -1115,14 +1348,14 @@ def plot_graph_pix(G, im=None, bbox=None, fig_height=6, fig_width=None, margin=0
     if im is not None:
         if fig == None and ax == None:
             fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-        ax.imshow(im)
+        # ax.imshow(im)
 
     else:
         if fig == None and ax == None:
             fig, ax = plt.subplots(figsize=(fig_width, fig_height), facecolor=bgcolor)
         ax.set_facecolor(bgcolor)
 
-    start_time = time.time()
+    #start_time = time.time()
     lines = []
     widths = []
     edge_colors = []
@@ -1149,7 +1382,8 @@ def plot_graph_pix(G, im=None, bbox=None, fig_height=6, fig_width=None, margin=0
         widths.append(width)
 
         if edge_color_key and color_dict:
-            color_key_val = int(data[edge_color_key])
+            print("data edge_color_key", data)
+            color_key_val = 45
             edge_colors.append(color_dict[color_key_val])
         else:
             edge_colors.append(edge_color)
@@ -1158,7 +1392,6 @@ def plot_graph_pix(G, im=None, bbox=None, fig_height=6, fig_width=None, margin=0
                         linewidths=widths,
                         alpha=edge_alpha, zorder=2)
     ax.add_collection(lc)
-    log('Drew the graph edges in {:,.2f} seconds'.format(time.time() - start_time))
 
     # scatter plot the nodes
     ax.scatter(node_Xs, node_Ys, s=node_size, c=node_color, alpha=node_alpha,
@@ -1202,22 +1435,342 @@ def plot_graph_pix(G, im=None, bbox=None, fig_height=6, fig_width=None, margin=0
         for node, data in G.nodes(data=True):
             ax.annotate(node, xy=(data['x_pix'], data['y_pix']))
 
+    # # update dpi, if image
+    # if im is not None:
+    #
+    #     max_dpi = int(23000 / max(fig_height, fig_width))
+    #     h, w = im.shape[:2]
+    #     # try to set dpi to native resolution of imagery
+    #     desired_dpi = max(default_dpi, 1.0 * h / fig_height)
+    #     # desired_dpi = max(default_dpi, int( np.max(im.shape) / max(fig_height, fig_width) ) )
+    #     dpi = int(np.min([max_dpi, desired_dpi]))
+    # else:
+    #     dpi = default_dpi
+    dpi = default_dpi
+    # save and show the figure as specified
+    fig, ax = save_and_show(fig, ax, save, show, close, filename,
+                            file_format, dpi, axis_off,
+                            invert_xaxis=invert_xaxis,
+                            invert_yaxis=invert_yaxis)
+    return fig, ax
+
+
+###############################################################################
+def plot_graph_route_pix(G, route, im=None, bbox=None, fig_height=6, fig_width=None,
+                     margin=0.02, bgcolor='w', axis_off=True, show=True,
+                     save=False, close=True, file_format='png', filename='temp',
+                     default_dpi=300, annotate=False, node_color='#999999',
+                     node_size=15, node_alpha=1, node_edgecolor='none',
+                     node_zorder=1,
+                     edge_color='#999999', edge_linewidth=1,
+                     edge_alpha=1,
+                     edge_color_key='speed_mph', color_dict={},
+                     edge_width_key='speed_mph',
+                     edge_width_mult=1./25,
+                     use_geom=True, origin_point=None,
+                     destination_point=None, route_color='r', route_linewidth=4,
+                     route_alpha=0.5, orig_dest_node_alpha=0.5,
+                     orig_dest_node_size=100,
+                     orig_dest_node_color='r',
+                     invert_xaxis=False, invert_yaxis=True,
+                     fig=None, ax=None):
+    """
+    Plot a route along a networkx spatial graph.
+    Parameters
+    ----------
+    G : networkx multidigraph
+    route : list
+        the route as a list of nodes
+    bbox : tuple
+        bounding box as north,south,east,west - if None will calculate from
+        spatial extents of data. if passing a bbox, you probably also want to
+        pass margin=0 to constrain it.
+    fig_height : int
+        matplotlib figure height in inches
+    fig_width : int
+        matplotlib figure width in inches
+    margin : float
+        relative margin around the figure
+    axis_off : bool
+        if True turn off the matplotlib axis
+    bgcolor : string
+        the background color of the figure and axis
+    show : bool
+        if True, show the figure
+    save : bool
+        if True, save the figure as an image file to disk
+    close : bool
+        close the figure (only if show equals False) to prevent display
+    file_format : string
+        the format of the file to save (e.g., 'jpg', 'png', 'svg')
+    filename : string
+        the name of the file if saving
+    default_dpi : int
+        the resolution of the image file if saving
+    annotate : bool
+        if True, annotate the nodes in the figure
+    node_color : string
+        the color of the nodes
+    node_size : int
+        the size of the nodes
+    node_alpha : float
+        the opacity of the nodes
+    node_edgecolor : string
+        the color of the node's marker's border
+    node_zorder : int
+        zorder to plot nodes, edges are always 2, so make node_zorder 1 to plot
+        nodes beneath them or 3 to plot nodes atop them
+    edge_color : string
+        the color of the edges' lines
+    edge_linewidth : float
+        the width of the edges' lines
+    edge_alpha : float
+        the opacity of the edges' lines
+    use_geom : bool
+        if True, use the spatial geometry attribute of the edges to draw
+        geographically accurate edges, rather than just lines straight from node
+        to node
+    origin_point : tuple
+        optional, an origin (lat, lon) point to plot instead of the origin node
+    destination_point : tuple
+        optional, a destination (lat, lon) point to plot instead of the
+        destination node
+    route_color : string
+        the color of the route
+    route_linewidth : int
+        the width of the route line
+    route_alpha : float
+        the opacity of the route line
+    orig_dest_node_alpha : float
+        the opacity of the origin and destination nodes
+    orig_dest_node_size : int
+        the size of the origin and destination nodes
+    orig_dest_node_color : string
+        the color of the origin and destination nodes
+        (can be a string or list with (origin_color, dest_color))
+        of nodes
+    Returns
+    -------
+    fig, ax : tuple
+    """
+
+    # plot the graph but not the route
+    fig, ax = plot_graph_pix(G, im=im, bbox=bbox, fig_height=fig_height, fig_width=fig_width,
+                         margin=margin, axis_off=axis_off, bgcolor=bgcolor,
+                         show=False, save=False, close=False, filename=filename,
+                         default_dpi=default_dpi, annotate=annotate, node_color=node_color,
+                         node_size=node_size, node_alpha=node_alpha,
+                         node_edgecolor=node_edgecolor, node_zorder=node_zorder,
+                         edge_color_key=edge_color_key, color_dict=color_dict,
+                         edge_color=edge_color, edge_linewidth=edge_linewidth,
+                         edge_alpha=edge_alpha, edge_width_key=edge_width_key,
+                         edge_width_mult=edge_width_mult,
+                         use_geom=use_geom,
+                         fig=fig, ax=ax)
+
+    # the origin and destination nodes are the first and last nodes in the route
+    origin_node = route[0]
+    destination_node = route[-1]
+
+    if origin_point is None or destination_point is None:
+        # if caller didn't pass points, use the first and last node in route as
+        # origin/destination
+        origin_destination_ys = (G.nodes[origin_node]['y_pix'],
+                                 G.nodes[destination_node]['y_pix'])
+        origin_destination_xs = (G.nodes[origin_node]['x_pix'],
+                                 G.nodes[destination_node]['x_pix'])
+    else:
+        # otherwise, use the passed points as origin/destination
+        origin_destination_xs = (origin_point[0], destination_point[0])
+        origin_destination_ys = (origin_point[1], destination_point[1])
+
+    # scatter the origin and destination points
+    ax.scatter(origin_destination_xs, origin_destination_ys,
+               s=orig_dest_node_size,
+               c=orig_dest_node_color,
+               alpha=orig_dest_node_alpha, edgecolor=node_edgecolor, zorder=4)
+
+    # plot the route lines
+    edge_nodes = list(zip(route[:-1], route[1:]))
+    lines = []
+    for u, v in edge_nodes:
+        # if there are parallel edges, select the shortest in length
+        data = min(G.get_edge_data(u, v).values(), key=lambda x: x['length'])
+
+        # if it has a geometry attribute (ie, a list of line segments)
+        if 'geometry_pix' in data and use_geom:
+            # add them to the list of lines to plot
+            xs, ys = data['geometry_pix'].xy
+            lines.append(list(zip(xs, ys)))
+        else:
+            # if it doesn't have a geometry attribute, the edge is a straight
+            # line from node to node
+            x1 = G.nodes[u]['x_pix']
+            y1 = G.nodes[u]['y_pix']
+            x2 = G.nodes[v]['x_pix']
+            y2 = G.nodes[v]['y_pix']
+            line = [(x1, y1), (x2, y2)]
+            lines.append(line)
+
+    # add the lines to the axis as a linecollection
+    lc = LineCollection(lines, colors=route_color, linewidths=route_linewidth, alpha=route_alpha, zorder=3)
+    ax.add_collection(lc)
+
     # update dpi, if image
     if im is not None:
-
+        #   mpl can handle a max of 2^29 pixels, or 23170 on a side
+        # recompute max_dpi
         max_dpi = int(23000 / max(fig_height, fig_width))
         h, w = im.shape[:2]
         # try to set dpi to native resolution of imagery
         desired_dpi = max(default_dpi, 1.0 * h / fig_height)
-        # desired_dpi = max(default_dpi, int( np.max(im.shape) / max(fig_height, fig_width) ) )
-        dpi = int(np.min([max_dpi, desired_dpi]))
-    else:
-        dpi = default_dpi
+        #desired_dpi = max(default_dpi, int( np.max(im.shape) / max(fig_height, fig_width) ) )
+        dpi = int(np.min([max_dpi, desired_dpi ]))
 
-    # # save and show the figure as specified
-    # fig, ax = save_and_show(fig, ax, save, show, close, filename,
-    #                         file_format, dpi, axis_off,
-    #                         invert_xaxis=invert_xaxis,
-    #                         invert_yaxis=invert_yaxis)
-    # return fig, ax
 
+    # save and show the figure as specified
+    fig, ax = save_and_show(fig, ax, save, show, close, filename,
+                            file_format, dpi, axis_off,
+                            invert_yaxis=invert_yaxis,
+                            invert_xaxis=invert_xaxis)
+
+    return fig, ax
+
+
+def plot_Graph_with_pixels(pathImage, Gout):
+    # dar tutorial settings
+    im_file = pathImage
+    save_only_route_png = False  # True
+    fig_height = 12
+    fig_width = 12
+    node_color = '#66ccff'  # light blue
+    node_size = 0.4
+    node_alpha = 0.6
+    edge_color = '#000'  # lightblue1
+    edge_linewidth = 0.5
+    edge_alpha = 0.6
+    edge_color_key = 'inferred_speed_mph'
+    orig_dest_node_size = 8 * node_size
+    max_plots = 3
+    shuffle = True
+    invert_xaxis = False
+    invert_yaxis = False
+    route_color = 'blue'
+    orig_dest_node_color = 'blue'
+    route_linewidth = 4 * edge_linewidth
+
+    node = list(Gout.nodes())[-1]
+    print("Gout.nodes[node]['lat']", Gout.nodes[node]['lat'])
+    if Gout.nodes[node]['lat'] < 0:
+        print("Negative latitude, inverting yaxis for plotting")
+        invert_yaxis = True
+
+    for u, v, key, data in Gout.edges(keys=True, data=True):
+        for attr_key in data:
+            if (attr_key == 'geometry') and (type(data[attr_key]) == str):
+                # print("update geometry...")
+                data[attr_key] = wkt.loads(data[attr_key])
+            elif (attr_key == 'geometry_pix') and (type(data[attr_key]) == str):
+                data[attr_key] = wkt.loads(data[attr_key])
+            else:
+                continue
+
+    try:
+        # convert to rgb (cv2 reads in bgr)
+        img_cv2 = cv2.imread(im_file, 1)
+        print("img_cv2.shape:", img_cv2.shape)
+        im = cv2.cvtColor(img_cv2, cv2.COLOR_BGR2RGB)
+    except:
+        im = skimage.io.imread(im_file).astype(np.uint8)  # [::-1]
+        # im = skimage.io.imread(im_file, as_grey=False).astype(np.uint8)#[::-1]
+
+    # set dpi to approximate native resolution
+    desired_dpi = int(np.max(im.shape) / np.max([fig_height, fig_width]))
+    # max out dpi at 3500
+    dpi = int(np.min([3500, desired_dpi]))
+    print("plot dpi:", dpi)
+
+    plot_graph_pix(Gout, im_file, fig_height=fig_height, fig_width=fig_width,
+                       node_size=node_size, node_alpha=node_alpha, node_color=node_color,
+                       edge_linewidth=edge_linewidth, edge_alpha=edge_alpha, edge_color=edge_color,
+                       default_dpi=dpi,
+                       edge_color_key=None,
+                       show=False, save=True,
+                       invert_yaxis=invert_yaxis,
+                       invert_xaxis=invert_xaxis)
+
+    # plot with speed
+    out_file_plot_speed = "speed.tif"
+    print("outfile_plot_speed:", out_file_plot_speed)
+    # width_key = 'inferred_speed_mph'
+    color_dict, color_list = make_color_dict_list()
+    plot_graph_pix(Gout, im, fig_height=fig_height, fig_width=fig_width,
+                       node_size=node_size, node_alpha=node_alpha, node_color=node_color,
+                       edge_linewidth=edge_linewidth, edge_alpha=edge_alpha, edge_color=edge_color,
+                       filename=out_file_plot_speed, default_dpi=dpi,
+                       show=False, save=True,
+                       invert_yaxis=invert_yaxis,
+                       invert_xaxis=invert_xaxis,
+                       edge_color_key=edge_color_key, color_dict=color_dict)
+
+    ################
+    # plot graph route
+    print("\nPlot a random route on the graph...")
+    # t0 = time.time()
+    # set source
+    source_idx = np.random.randint(0, len(Gout.nodes()))
+    source = list(Gout.nodes())[source_idx]
+    # get routes
+    lengths, paths = nx.single_source_dijkstra(Gout, source=source, weight='length')
+    # random target
+    targ_idx = np.random.randint(0, len(list(lengths.keys())))
+    target = list(lengths.keys())[targ_idx]
+    # specific route
+    route = paths[target]
+    print("source:", source)
+    print("target:", target)
+    print("route:", route)
+    # plot route
+    out_file_route = '_ox_route_r0_length.tif'
+    print("outfile_route:", out_file_route)
+    plot_graph_route_pix(Gout, route, im=im, fig_height=fig_height, fig_width=fig_width,
+                             node_size=node_size, node_alpha=node_alpha, node_color=node_color,
+                             edge_linewidth=edge_linewidth, edge_alpha=edge_alpha, edge_color=edge_color,
+                             orig_dest_node_size=orig_dest_node_size,
+                             route_color=route_color,
+                             orig_dest_node_color=orig_dest_node_color,
+                             route_linewidth=route_linewidth,
+                             filename=out_file_route, default_dpi=dpi,
+                             show=False, save=True,
+                             invert_yaxis=invert_yaxis,
+                             invert_xaxis=invert_xaxis,
+                             edge_color_key=None)
+    # t1 = time.time()
+    # print("Time to run plot_graph_route_pix():", t1-t0, "seconds")
+
+    ################
+    # plot graph route (speed)
+    print("\nPlot a random route on the graph...")
+    # t0 = time.time()
+    # get routes
+    lengths, paths = nx.single_source_dijkstra(Gout, source=source, weight='Travel Time (h)')
+    # specific route
+    route = paths[target]
+
+    # plot route
+    out_file_route = '_ox_route_r0_speed.tif'
+    print("outfile_route:", out_file_route)
+    plot_graph_route_pix(Gout, route, im=im, fig_height=fig_height, fig_width=fig_width,
+                             node_size=node_size, node_alpha=node_alpha, node_color=node_color,
+                             edge_linewidth=edge_linewidth, edge_alpha=edge_alpha, edge_color=edge_color,
+                             orig_dest_node_size=orig_dest_node_size,
+                             route_color=route_color,
+                             orig_dest_node_color=orig_dest_node_color,
+                             route_linewidth=route_linewidth,
+                             filename=out_file_route, default_dpi=dpi,
+                             show=False, save=True,
+                             invert_yaxis=invert_yaxis,
+                             invert_xaxis=invert_xaxis,
+                             edge_color_key=edge_color_key, color_dict=color_dict)
+    # t1 = time.time()
+    # print("Time to run plot_graph_route_pix():", t1-t0, "seconds")
