@@ -1,9 +1,0 @@
-scikit-image
-opencv-python
-sknw
-matplotlib
-Shapely
-osmnx
-utm
-rdp
-argparse
