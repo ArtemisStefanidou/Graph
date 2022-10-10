@@ -328,15 +328,20 @@ def G_to_wkt(G, add_small=True, connect_crossroads=True,
 
 def image(pathImage):
      # pathImage = 'SN3_roads_train_AOI_3_Paris_PS-MS_img148_result.tif'
-    img = cv2.imread(pathImage, cv2.IMREAD_GRAYSCALE)
+
+    #Read the image in the path and do it in grayscale mode
+    img = cv2.imread(pathImage, cv2.IMREAD_UNCHANGED)
+    print("img", img)
     return img
     
 def skeletonizeImage(img):
 
+    #Return True if img > threshold_otsu(img) and false if img < threshold_otsu(img)
     binary = img > filters.threshold_otsu(img)
 
     ske = skeletonize(binary).astype(np.uint16)
 
+    #ske: should be a nd skeleton image, iso: if True, return one-pixel node
     graph = sknw.build_sknw(ske, ('iso' == False))
     
     return graph
@@ -602,19 +607,18 @@ def wkt_to_graph(wkt_list):
 
         G0 = ox.simplify_graph(Gout.to_directed())
         G0 = G0.to_undirected()
-        # Gout = ox.project_graph(G0)
 
         # BUG, GOOF, ERROR IN OSMNX PROJECT, SO NEED TO MANUALLY SET X, Y FOR NODES!!??
         if manually_reproject_nodes:
             # make sure geometry is utm for nodes?
-            for i, (n, attr_dict) in enumerate(Gout.nodes(data=True)):
+            for i, (n, attr_dict) in enumerate(G0.nodes(data=True)):
                 attr_dict['x'] = attr_dict['utm_east']
                 attr_dict['y'] = attr_dict['utm_north']
 
 
         keys_tmp = ['geometry_wkt', 'geometry_pix', 'geometry_latlon_wkt','geometry_utm_wkt']
         for key_tmp in keys_tmp:
-            for i, (u, v, attr_dict) in enumerate(Gout.edges(data=True)):
+            for i, (u, v, attr_dict) in enumerate(G0.edges(data=True)):
                 if key_tmp not in attr_dict.keys():
                     continue
 
@@ -689,13 +693,7 @@ def wkt_to_graph(wkt_list):
             return
         nx.write_gpickle(Gout, out_file, protocol=pickle_protocol)
         print('the end')
-        # G_epsg3857 = ox.project_graph(Gout, to_crs='epsg:3857')
-        # print("out_file", out_file)
-        # p0_tmp, p1_tmp, p2_tmp = out_file.split('.')
-        # out_file_tmp = p0_tmp + p1_tmp + '_3857.' + p2_tmp
-        # nx.write_gpickle(G_epsg3857, out_file_tmp, protocol=pickle_protocol)
-        # print(type(Gout))
-        return Gout
+        return G0
 
   
     
