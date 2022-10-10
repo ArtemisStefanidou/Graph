@@ -1,6 +1,6 @@
 # Graph
 
-Run Project
+Run Project \\
 Για αρχή για να τρέξει το πρόγραμμα σωστά απαιτείται να δημιουργήσετε ένα conda environment. Σε
 αυτό θα πρέπει με τη σειρά να εγκαταστήσετε, μέσω pip, τα ακόλουθα :
 1. pip install scikit-image
@@ -11,7 +11,7 @@ Run Project
 6. pip install osmnx
 7. pip install utm
 8. pip install rdp
-9. pip install argparse
+9. pip install argparse \\
 Αυτό μπορείτε να το κάνετε είτε με την εντολή pip install requirements.txt, όπου μέσα στο txt
 αρχείο υπάρχουν τα όσα χρειάζεται το πρόγραμμα για να λειτουργήσει είτε, χειροκίνητα και να τα κατε-
 βάσετε ένα προς ένα με τη σειρά που αναφέρεται πιο πάνω.
